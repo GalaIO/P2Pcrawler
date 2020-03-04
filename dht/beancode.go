@@ -106,7 +106,7 @@ func innerDecodeString(src string, start int) (string, int, error) {
 	return src[idx+1 : start], start, nil
 }
 
-func encodeSlice(src []interface{}) (string, error) {
+func encodeSlice(src List) (string, error) {
 
 	if src == nil {
 		return "", WrongDecodeParamErr
@@ -140,7 +140,7 @@ func encodeItem(item interface{}) (string, error) {
 			err = WrongDecodeParamErr
 		}
 	case reflect.Map:
-		if ls, ok := item.(map[string]interface{}); ok {
+		if ls, ok := item.(Dict); ok {
 			tmp, err = encodeDict(ls)
 		} else {
 			err = WrongDecodeParamErr
@@ -151,7 +151,7 @@ func encodeItem(item interface{}) (string, error) {
 	return tmp, err
 }
 
-func decodeSlice(src string) ([]interface{}, error) {
+func decodeSlice(src string) (List, error) {
 	if len(src) < 2 {
 		return nil, WrongDecodeParamErr
 	}
@@ -172,12 +172,12 @@ func decodeSlice(src string) ([]interface{}, error) {
 	return result, nil
 }
 
-func innerDecodeSlice(src string, start int) ([]interface{}, int, error) {
+func innerDecodeSlice(src string, start int) (List, int, error) {
 	if src[start] != 'l' {
 		return nil, -1, WrongDecodeParamErr
 	}
 
-	result := make([]interface{}, 0, 16)
+	result := make(List, 0, 16)
 	i := start + 1
 	for i < len(src) && src[i] != 'e' {
 		tmp, nextIdx, err := decodeItem(src, i)
@@ -204,7 +204,7 @@ func decodeItem(src string, i int) (interface{}, int, error) {
 	}
 }
 
-func encodeDict(src map[string]interface{}) (string, error) {
+func encodeDict(src Dict) (string, error) {
 
 	if src == nil {
 		return "", WrongDecodeParamErr
@@ -226,7 +226,7 @@ func encodeDict(src map[string]interface{}) (string, error) {
 	return "d" + str + "e", nil
 }
 
-func decodeDict(src string) (map[string]interface{}, error) {
+func decodeDict(src string) (Dict, error) {
 
 	tLen := len(src)
 	if tLen < 2 {
@@ -246,13 +246,13 @@ func decodeDict(src string) (map[string]interface{}, error) {
 	return result, nil
 }
 
-func innerDecodeDict(src string, start int) (map[string]interface{}, int, error) {
+func innerDecodeDict(src string, start int) (Dict, int, error) {
 
 	if src[start] != 'd' {
 		return nil, -1, WrongDecodeParamErr
 	}
 
-	result := make(map[string]interface{})
+	result := make(Dict)
 
 	i := start + 1
 	for i < len(src) && src[i] != 'e' {
