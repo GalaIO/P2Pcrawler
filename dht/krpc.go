@@ -1,69 +1,75 @@
 package dht
 
 func withPingMsg(txId string, nodeId string) Dict {
-	return Dict{
-		"t": txId,
-		"y": "q",
-		"q": "ping",
-		"a": Dict{
-			"id": nodeId,
-		},
-	}
+	return withQueryMsg(txId, "ping", Dict{
+		"id": nodeId,
+	})
 }
 
-func pingHandle(msg Dict, handleFunc func() string) Dict {
+func pingHandle(msg Dict, handleFunc func() string) (ret Dict) {
 
-	body, exist := msg["a"]
-	if !exist {
-		return withParamErr("")
+	defer func() {
+		if err := recover(); err != nil {
+			dhtError := err.(*DhtError)
+			ret = withParamErr(dhtError.Error())
+		}
+	}()
+
+	txId := msg.GetString("t")
+	body := msg.GetDict("a")
+	sourceId := body.GetString("id")
+
+	if len(sourceId) != 20 {
+		return withParamErr("id format err")
 	}
+	return withResponse(txId, Dict{
+		"id": handleFunc(),
+	})
+}
 
-	cmap, ok := body.(Dict)
-	if !ok {
-		return withParamErr("")
-	}
+func findNodeHandle(msg Dict, handleFunc func(nodeId string) (string, string)) (ret Dict) {
 
-	sourceId, exist := cmap["id"]
-	if !exist {
-		return withParamErr("id cannot be empty")
-	}
+	defer func() {
+		if err := recover(); err != nil {
+			dhtError := err.(*DhtError)
+			ret = withParamErr(dhtError.Error())
+		}
+	}()
 
-	id, ok := sourceId.(string)
-	if !ok || len(id) != 20 {
+	txId := msg.GetString("t")
+	body := msg.GetDict("a")
+	sourceId := body.GetString("id")
+
+	if len(sourceId) != 20 {
 		return withParamErr("id format err")
 	}
 
-	return Dict{
-		"t": msg["t"],
-		"y": "r",
-		"r": Dict{
-			"id": handleFunc(),
-		},
-	}
-}
-
-func findNodeHandle(msg Dict, handleFunc func(nodeId string) (string, string)) Dict {
-	body, _ := msg["a"]
-	cmap, _ := body.(Dict)
-	nodeId, nodes := handleFunc(cmap["target"].(string))
-	return Dict{
-		"t": msg["t"],
-		"y": "r",
-		"r": Dict{
-			"id":    nodeId,
-			"nodes": nodes,
-		},
-	}
+	nodeId, nodes := handleFunc(body.GetString("target"))
+	return withResponse(txId, Dict{
+		"id":    nodeId,
+		"nodes": nodes,
+	})
 }
 
 func withFindNodeMsg(txId string, nodeId, target string) Dict {
+
+	return withQueryMsg(txId, "find_node", Dict{
+		"id":     nodeId,
+		"target": target,
+	})
+}
+func withQueryMsg(txId string, queryType string, body Dict) Dict {
 	return Dict{
 		"t": txId,
 		"y": "q",
-		"q": "find_node",
-		"a": Dict{
-			"id":     nodeId,
-			"target": target,
-		},
+		"q": queryType,
+		"a": body,
+	}
+}
+func withResponse(txId string, resp Dict) Dict {
+	return Dict{
+		"t": txId,
+		"y": "r",
+		"r": resp,
 	}
 }

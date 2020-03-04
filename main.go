@@ -7,6 +7,18 @@ import (
 	"reflect"
 )
 
+func panicTest() (ret string) {
+
+	defer func() {
+		if err := recover(); err != nil {
+			ret = err.(string)
+		}
+	}()
+
+	panic("123")
+	return "456"
+}
+
 func main() {
 	fmt.Println("hello world")
 
@@ -40,4 +52,6 @@ func main() {
 	fmt.Printf("%s\n", t.Kind())
 	fmt.Printf("%s\n", mt.Name())
 	fmt.Printf("%s\n", mt.Kind())
+
+	fmt.Println(panicTest())
 }

@@ -10,7 +10,7 @@ func TestIntergeEncode(t *testing.T) {
 		-3: "i-3e",
 	}
 	for src := range testList {
-		res, _ := encodeInteger(src)
+		res, _ := EncodeInteger(src)
 		assert.Equal(t, testList[src], res)
 	}
 }
@@ -28,7 +28,7 @@ func TestIntergeDecode(t *testing.T) {
 		"i-0e":  WrongDecodeParamErr,
 	}
 	for src := range testList {
-		res, err := decodeInteger(src)
+		res, err := DecodeInteger(src)
 		if err != nil {
 			assert.Equal(t, testList[src], err)
 			continue
@@ -45,7 +45,7 @@ func TestStringEncode(t *testing.T) {
 		"":      "0:",
 	}
 	for src := range testList {
-		res, _ := encodeString(src)
+		res, _ := EncodeString(src)
 		assert.Equal(t, testList[src], res)
 	}
 }
@@ -62,7 +62,7 @@ func TestStringDecode(t *testing.T) {
 		":spam":   WrongDecodeParamErr,
 	}
 	for src := range testList {
-		res, err := decodeString(src)
+		res, err := DecodeString(src)
 		if err != nil {
 			assert.Equal(t, testList[src], err)
 			continue
@@ -73,22 +73,22 @@ func TestStringDecode(t *testing.T) {
 
 func TestListEncode(t *testing.T) {
 
-	res, _ := encodeSlice(List{"spam", "eggs"})
+	res, _ := EncodeSlice(List{"spam", "eggs"})
 	assert.Equal(t, "l4:spam4:eggse", res)
 
-	res, _ = encodeSlice(List{10, "eggs"})
+	res, _ = EncodeSlice(List{10, "eggs"})
 	assert.Equal(t, "li10e4:eggse", res)
 
-	res, _ = encodeSlice(List{-10, 0})
+	res, _ = EncodeSlice(List{-10, 0})
 	assert.Equal(t, "li-10ei0ee", res)
 
-	res, _ = encodeSlice(List{})
+	res, _ = EncodeSlice(List{})
 	assert.Equal(t, "le", res)
 
-	_, err := encodeSlice(List{1.0})
+	_, err := EncodeSlice(List{1.0})
 	assert.Equal(t, WrongDecodeParamErr, err)
 
-	res, _ = encodeSlice(List{10, "abc", List{"a", "b"}})
+	res, _ = EncodeSlice(List{10, "abc", List{"a", "b"}})
 	assert.Equal(t, "li10e3:abcl1:a1:bee", res)
 }
 
@@ -97,47 +97,47 @@ func TestListDecode(t *testing.T) {
 	var res List
 	var err error
 
-	res, _ = decodeSlice("l4:spam4:eggse")
+	res, _ = DecodeSlice("l4:spam4:eggse")
 	assert.Equal(t, List{"spam", "eggs"}, res)
 
-	res, _ = decodeSlice("li10e4:eggse")
+	res, _ = DecodeSlice("li10e4:eggse")
 	assert.Equal(t, List{10, "eggs"}, res)
 
-	res, _ = decodeSlice("li-10ei0ee")
+	res, _ = DecodeSlice("li-10ei0ee")
 	assert.Equal(t, List{-10, 0}, res)
 
-	res, _ = decodeSlice("li-10ei0eli1ei2eee")
+	res, _ = DecodeSlice("li-10ei0eli1ei2eee")
 	assert.Equal(t, List{-10, 0, List{1, 2}}, res)
 
-	res, _ = decodeSlice("li10ei0ei-1elei10ee")
+	res, _ = DecodeSlice("li10ei0ei-1elei10ee")
 	assert.Equal(t, List{10, 0, -1, List{}, 10}, res)
 
-	res, _ = decodeSlice("le")
+	res, _ = DecodeSlice("le")
 	assert.Equal(t, List{}, res)
 
-	_, err = decodeSlice("li-0e1:2222e")
+	_, err = DecodeSlice("li-0e1:2222e")
 	assert.Equal(t, WrongDecodeParamErr, err)
 
-	_, err = decodeSlice("li:e")
+	_, err = DecodeSlice("li:e")
 	assert.Equal(t, WrongDecodeParamErr, err)
 
-	_, err = decodeSlice("li10e")
+	_, err = DecodeSlice("li10e")
 	assert.Equal(t, WrongDecodeParamErr, err)
 
 }
 
 func TestMapEncode(t *testing.T) {
 
-	res, _ := encodeDict(Dict{"cow": "moo", "spam": "eggs"})
+	res, _ := EncodeDict(Dict{"cow": "moo", "spam": "eggs"})
 	assert.Equal(t, "d3:cow3:moo4:spam4:eggse", res)
 
-	res, _ = encodeDict(Dict{"name": "xiaohua", "age": 10})
+	res, _ = EncodeDict(Dict{"name": "xiaohua", "age": 10})
 	assert.Equal(t, "d4:name7:xiaohua3:agei10ee", res)
 
-	res, _ = encodeDict(Dict{"spam": List{"a", "b"}, "age": List{10, 20}})
+	res, _ = EncodeDict(Dict{"spam": List{"a", "b"}, "age": List{10, 20}})
 	assert.Equal(t, "d4:spaml1:a1:be3:ageli10ei20eee", res)
 
-	res, _ = encodeDict(Dict{"spam": List{"a", "b"}, "age": Dict{"math": 10, "english": 20}})
+	res, _ = EncodeDict(Dict{"spam": List{"a", "b"}, "age": Dict{"math": 10, "english": 20}})
 	assert.Equal(t, "d4:spaml1:a1:be3:aged4:mathi10e7:englishi20eee", res)
 
 }
@@ -147,19 +147,19 @@ func TestMapDecode(t *testing.T) {
 	var res Dict
 	var err error
 
-	res, _ = decodeDict("d3:cow3:moo4:spam4:eggse")
+	res, _ = DecodeDict("d3:cow3:moo4:spam4:eggse")
 	assert.Equal(t, Dict{"cow": "moo", "spam": "eggs"}, res)
 
-	res, _ = decodeDict("d4:name7:xiaohua3:agei10ee")
+	res, _ = DecodeDict("d4:name7:xiaohua3:agei10ee")
 	assert.Equal(t, Dict{"name": "xiaohua", "age": 10}, res)
 
-	_, err = decodeDict("d1:name7:xiaohua:agei10ee")
+	_, err = DecodeDict("d1:name7:xiaohua:agei10ee")
 	assert.Equal(t, WrongDecodeParamErr, err)
 
-	res, _ = decodeDict("d4:spaml1:a1:be3:ageli10ei20eee")
+	res, _ = DecodeDict("d4:spaml1:a1:be3:ageli10ei20eee")
 	assert.Equal(t, Dict{"spam": List{"a", "b"}, "age": List{10, 20}}, res)
 
-	res, _ = decodeDict("d4:spaml1:a1:be3:aged4:mathi10e7:englishi20eee")
+	res, _ = DecodeDict("d4:spaml1:a1:be3:aged4:mathi10e7:englishi20eee")
 	assert.Equal(t, Dict{"spam": List{"a", "b"}, "age": Dict{"math": 10, "english": 20}}, res)
 
 }

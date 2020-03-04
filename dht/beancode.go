@@ -9,11 +9,11 @@ import (
 
 var WrongDecodeParamErr = errors.New("wrong benDecode param")
 
-func encodeInteger(src int) (string, error) {
+func EncodeInteger(src int) (string, error) {
 	return "i" + strconv.Itoa(src) + "e", nil
 }
 
-func decodeInteger(src string) (int, error) {
+func DecodeInteger(src string) (int, error) {
 
 	if len(src) < 2 {
 		return 0, WrongDecodeParamErr
@@ -61,11 +61,11 @@ func innerDecodeInteger(src string, start int) (int, int, error) {
 	return 0, -1, WrongDecodeParamErr
 }
 
-func encodeString(src string) (string, error) {
+func EncodeString(src string) (string, error) {
 	return strconv.Itoa(len(src)) + ":" + src, nil
 }
 
-func decodeString(src string) (string, error) {
+func DecodeString(src string) (string, error) {
 
 	if len(src) < 2 {
 		return "", WrongDecodeParamErr
@@ -106,7 +106,7 @@ func innerDecodeString(src string, start int) (string, int, error) {
 	return src[idx+1 : start], start, nil
 }
 
-func encodeSlice(src List) (string, error) {
+func EncodeSlice(src List) (string, error) {
 
 	if src == nil {
 		return "", WrongDecodeParamErr
@@ -130,18 +130,18 @@ func encodeItem(item interface{}) (string, error) {
 	var tmp string
 	switch t.Kind() {
 	case reflect.Int:
-		tmp, err = encodeInteger(item.(int))
+		tmp, err = EncodeInteger(item.(int))
 	case reflect.String:
-		tmp, err = encodeString(item.(string))
+		tmp, err = EncodeString(item.(string))
 	case reflect.Slice:
 		if ls, ok := item.(List); ok {
-			tmp, err = encodeSlice(ls)
+			tmp, err = EncodeSlice(ls)
 		} else {
 			err = WrongDecodeParamErr
 		}
 	case reflect.Map:
 		if ls, ok := item.(Dict); ok {
-			tmp, err = encodeDict(ls)
+			tmp, err = EncodeDict(ls)
 		} else {
 			err = WrongDecodeParamErr
 		}
@@ -151,7 +151,7 @@ func encodeItem(item interface{}) (string, error) {
 	return tmp, err
 }
 
-func decodeSlice(src string) (List, error) {
+func DecodeSlice(src string) (List, error) {
 	if len(src) < 2 {
 		return nil, WrongDecodeParamErr
 	}
@@ -204,14 +204,14 @@ func decodeItem(src string, i int) (interface{}, int, error) {
 	}
 }
 
-func encodeDict(src Dict) (string, error) {
+func EncodeDict(src Dict) (string, error) {
 
 	if src == nil {
 		return "", WrongDecodeParamErr
 	}
 	str := ""
 	for k, v := range src {
-		ktmp, err := encodeString(k)
+		ktmp, err := EncodeString(k)
 		if err != nil {
 			return "", err
 		}
@@ -226,7 +226,7 @@ func encodeDict(src Dict) (string, error) {
 	return "d" + str + "e", nil
 }
 
-func decodeDict(src string) (Dict, error) {
+func DecodeDict(src string) (Dict, error) {
 
 	tLen := len(src)
 	if tLen < 2 {
