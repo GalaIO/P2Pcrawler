@@ -36,17 +36,6 @@ func panicSysErr(errMsg string, params ...interface{}) {
 	panic(NewDhtErr(GenericErr, errMsg, true, params))
 }
 
-func panicBizErr(errMsg string, params ...interface{}) {
+func PanicBizErr(errMsg string, params ...interface{}) {
 	panic(NewDhtErr(GenericErr, errMsg, false, params))
-}
-
-func withParamErr(msg string) Dict {
-	if len(msg) <= 0 {
-		msg = "invalid param"
-	}
-	return withErr(ProtocolErr, msg)
-}
-
-func withErr(code DhtErrCode, errMsg string) Dict {
-	return Dict{"t": "aa", "y": "e", "e": List{code, errMsg}}
 }
