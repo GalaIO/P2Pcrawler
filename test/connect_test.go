@@ -9,7 +9,7 @@ import (
 )
 
 func TestUdp(t *testing.T) {
-	laddr := ":9000"
+	laddr := ":9090"
 	raddr := "87.98.162.88:6881"
 	request := []byte("d1:ad2:id20:abcdefghij01234567896:target20:mnopqrstuvwxyz123456e1:q9:find_node1:t2:aa1:y1:qe")
 	//raddr := "time.nist.gov:37"

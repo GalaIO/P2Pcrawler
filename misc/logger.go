@@ -1,7 +1,6 @@
 package misc
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -181,21 +180,19 @@ func appendCtx(msg string, ctx Dict) string {
 		return msg
 	}
 
-	bufs := make([]string, len(ctx))
 	i := 0
+	var builder strings.Builder
+	builder.Grow(2 * len(msg))
+	builder.WriteString(msg)
+	builder.WriteString(", ")
 	for k, v := range ctx {
-		if vs, ok := v.(string); ok {
-			bufs[i] = k + ":" + vs
-			i++
-			continue
+		if i > 0 {
+			builder.WriteByte('|')
 		}
-		bytes, err := json.Marshal(v)
-		if err != nil {
-			bufs[i] = k + ":" + err.Error()
-		} else {
-			bufs[i] = k + ":" + string(bytes)
-		}
+		builder.WriteString(k)
+		builder.WriteByte(':')
+		builder.WriteString(ToString(v))
 		i++
 	}
-	return msg + ", " + strings.Join(bufs, "|")
+	return builder.String()
 }
