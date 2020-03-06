@@ -1,4 +1,4 @@
-package dht
+package misc
 
 import "strings"
 

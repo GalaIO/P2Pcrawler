@@ -1,4 +1,4 @@
-package dht
+package misc
 
 import (
 	"github.com/stretchr/testify/assert"
@@ -55,7 +55,7 @@ func TestDictGetterPanic(t *testing.T) {
 		func() {
 			defer func() {
 				if err := recover(); err != nil {
-					dhtError := err.(*DhtError)
+					dhtError := err.(*Error)
 					assert.Equal(t, td.output, dhtError.Error())
 				}
 			}()
@@ -119,7 +119,7 @@ func TestListGetterPanic(t *testing.T) {
 		func() {
 			defer func() {
 				if err := recover(); err != nil {
-					dhtError := err.(*DhtError)
+					dhtError := err.(*Error)
 					assert.Equal(t, td.output, dhtError.Error())
 				}
 			}()

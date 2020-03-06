@@ -1,30 +1,30 @@
-package dht
+package misc
 
 import "strconv"
 
-type DhtErrCode int
+type ErrCode int
 
 const (
-	NoneErr DhtErrCode = 200 + iota
+	NoneErr ErrCode = 200 + iota
 	GenericErr
 	ServerErr
 	ProtocolErr
 	UnknowMethod
 )
 
-type DhtError struct {
-	code       DhtErrCode
+type Error struct {
+	code       ErrCode
 	msg        string
 	context    List
 	printStack bool
 }
 
-func (d *DhtError) Error() string {
+func (d *Error) Error() string {
 	return strconv.Itoa(int(d.code)) + ":" + d.msg
 }
 
-func NewDhtErr(code DhtErrCode, msg string, printStack bool, params ...interface{}) *DhtError {
-	return &DhtError{
+func NewError(code ErrCode, msg string, printStack bool, params ...interface{}) *Error {
+	return &Error{
 		code:       code,
 		msg:        msg,
 		context:    params,
@@ -33,9 +33,9 @@ func NewDhtErr(code DhtErrCode, msg string, printStack bool, params ...interface
 }
 
 func panicSysErr(errMsg string, params ...interface{}) {
-	panic(NewDhtErr(GenericErr, errMsg, true, params))
+	panic(NewError(GenericErr, errMsg, true, params))
 }
 
 func PanicBizErr(errMsg string, params ...interface{}) {
-	panic(NewDhtErr(GenericErr, errMsg, false, params))
+	panic(NewError(GenericErr, errMsg, false, params))
 }

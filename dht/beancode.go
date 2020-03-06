@@ -2,6 +2,7 @@ package dht
 
 import (
 	"errors"
+	"github.com/GalaIO/P2Pcrawler/misc"
 	"reflect"
 	"strconv"
 	"strings"
@@ -106,7 +107,7 @@ func innerDecodeString(src string, start int) (string, int, error) {
 	return src[idx+1 : start], start, nil
 }
 
-func EncodeSlice(src List) (string, error) {
+func EncodeSlice(src misc.List) (string, error) {
 
 	if src == nil {
 		return "", WrongDecodeParamErr
@@ -134,13 +135,13 @@ func encodeItem(item interface{}) (string, error) {
 	case reflect.String:
 		tmp, err = EncodeString(item.(string))
 	case reflect.Slice:
-		if ls, ok := item.(List); ok {
+		if ls, ok := item.(misc.List); ok {
 			tmp, err = EncodeSlice(ls)
 		} else {
 			err = WrongDecodeParamErr
 		}
 	case reflect.Map:
-		if ls, ok := item.(Dict); ok {
+		if ls, ok := item.(misc.Dict); ok {
 			tmp, err = EncodeDict(ls)
 		} else {
 			err = WrongDecodeParamErr
@@ -151,7 +152,7 @@ func encodeItem(item interface{}) (string, error) {
 	return tmp, err
 }
 
-func DecodeSlice(src string) (List, error) {
+func DecodeSlice(src string) (misc.List, error) {
 	if len(src) < 2 {
 		return nil, WrongDecodeParamErr
 	}
@@ -172,12 +173,12 @@ func DecodeSlice(src string) (List, error) {
 	return result, nil
 }
 
-func innerDecodeSlice(src string, start int) (List, int, error) {
+func innerDecodeSlice(src string, start int) (misc.List, int, error) {
 	if src[start] != 'l' {
 		return nil, -1, WrongDecodeParamErr
 	}
 
-	result := make(List, 0, 16)
+	result := make(misc.List, 0, 16)
 	i := start + 1
 	for i < len(src) && src[i] != 'e' {
 		tmp, nextIdx, err := decodeItem(src, i)
@@ -204,7 +205,7 @@ func decodeItem(src string, i int) (interface{}, int, error) {
 	}
 }
 
-func EncodeDict(src Dict) (string, error) {
+func EncodeDict(src misc.Dict) (string, error) {
 
 	if src == nil {
 		return "", WrongDecodeParamErr
@@ -226,7 +227,7 @@ func EncodeDict(src Dict) (string, error) {
 	return "d" + str + "e", nil
 }
 
-func DecodeDict(src string) (Dict, error) {
+func DecodeDict(src string) (misc.Dict, error) {
 
 	tLen := len(src)
 	if tLen < 2 {
@@ -246,13 +247,13 @@ func DecodeDict(src string) (Dict, error) {
 	return result, nil
 }
 
-func innerDecodeDict(src string, start int) (Dict, int, error) {
+func innerDecodeDict(src string, start int) (misc.Dict, int, error) {
 
 	if src[start] != 'd' {
 		return nil, -1, WrongDecodeParamErr
 	}
 
-	result := make(Dict)
+	result := make(misc.Dict)
 
 	i := start + 1
 	for i < len(src) && src[i] != 'e' {

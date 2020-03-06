@@ -3,26 +3,26 @@ package krpc
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/GalaIO/P2Pcrawler/dht"
+	"github.com/GalaIO/P2Pcrawler/misc"
 )
 
 type Response interface {
 	TxId() string
 	NodeId() string
-	Body() dht.Dict
+	Body() misc.Dict
 	Error() bool
-	RawData() dht.Dict
+	RawData() misc.Dict
 	fmt.Stringer
 }
 
 type BaseResponse struct {
 	txId  string
 	qType string
-	body  dht.Dict
+	body  misc.Dict
 	isErr bool
 }
 
-func NewBaseResponse(txId, qType string, isErr bool, body dht.Dict) Response {
+func NewBaseResponse(txId, qType string, isErr bool, body misc.Dict) Response {
 	return &BaseResponse{
 		txId:  txId,
 		qType: qType,
@@ -39,7 +39,7 @@ func (b *BaseResponse) NodeId() string {
 	return b.body.GetString("id")
 }
 
-func (b *BaseResponse) Body() dht.Dict {
+func (b *BaseResponse) Body() misc.Dict {
 	return b.body
 }
 
@@ -47,12 +47,12 @@ func (b *BaseResponse) Error() bool {
 	return b.isErr
 }
 
-func (b *BaseResponse) RawData() dht.Dict {
+func (b *BaseResponse) RawData() misc.Dict {
 	respType := "r"
 	if b.isErr {
 		respType = "e"
 	}
-	return dht.Dict{
+	return misc.Dict{
 		"t": b.txId,
 		"y": respType,
 		"r": b.body,
@@ -73,20 +73,20 @@ type RespHandlerFunc func(req Request, resp Response)
 type Request interface {
 	TxId() string
 	Type() string
-	Body() dht.Dict
+	Body() misc.Dict
 	Handler() RespHandlerFunc
-	RawData() dht.Dict
+	RawData() misc.Dict
 	fmt.Stringer
 }
 
 type BaseRequest struct {
 	txId    string
 	qType   string
-	body    dht.Dict
+	body    misc.Dict
 	handler RespHandlerFunc
 }
 
-func NewBaseRequest(txId, qtype string, body dht.Dict, handlerFunc RespHandlerFunc) Request {
+func NewBaseRequest(txId, qtype string, body misc.Dict, handlerFunc RespHandlerFunc) Request {
 	return &BaseRequest{
 		txId:    txId,
 		qType:   qtype,
@@ -103,7 +103,7 @@ func (b *BaseRequest) Type() string {
 	return b.qType
 }
 
-func (b *BaseRequest) Body() dht.Dict {
+func (b *BaseRequest) Body() misc.Dict {
 	return b.body
 }
 
@@ -111,8 +111,8 @@ func (b *BaseRequest) Handler() RespHandlerFunc {
 	return b.handler
 }
 
-func (b *BaseRequest) RawData() dht.Dict {
-	return dht.Dict{
+func (b *BaseRequest) RawData() misc.Dict {
+	return misc.Dict{
 		"t": b.txId,
 		"y": "q",
 		"q": b.qType,
@@ -130,8 +130,8 @@ func (b *BaseRequest) String() string {
 }
 
 // response
-func withResponse(txId string, resp dht.Dict) dht.Dict {
-	return dht.Dict{
+func withResponse(txId string, resp misc.Dict) misc.Dict {
+	return misc.Dict{
 		"t": txId,
 		"y": "r",
 		"r": resp,
@@ -139,26 +139,26 @@ func withResponse(txId string, resp dht.Dict) dht.Dict {
 }
 
 // error
-func withParamErr(msg string) dht.Dict {
+func withParamErr(msg string) misc.Dict {
 	if len(msg) <= 0 {
 		msg = "invalid param"
 	}
-	return withErr(dht.ProtocolErr, msg)
+	return withErr(misc.ProtocolErr, msg)
 }
 
-func withErr(code dht.DhtErrCode, errMsg string) dht.Dict {
-	return dht.Dict{"t": "aa", "y": "e", "e": dht.List{code, errMsg}}
+func withErr(code misc.ErrCode, errMsg string) misc.Dict {
+	return misc.Dict{"t": "aa", "y": "e", "e": misc.List{code, errMsg}}
 }
 
 // define query msg
 func withPingMsg(txId string, nodeId string, handler RespHandlerFunc) Request {
-	return NewBaseRequest(txId, "ping", dht.Dict{
+	return NewBaseRequest(txId, "ping", misc.Dict{
 		"id": nodeId,
 	}, handler)
 }
 
 func withFindNodeMsg(txId string, nodeId, target string, handler RespHandlerFunc) Request {
-	return NewBaseRequest(txId, "find_node", dht.Dict{
+	return NewBaseRequest(txId, "find_node", misc.Dict{
 		"id":     nodeId,
 		"target": target,
 	}, handler)

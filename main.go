@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"reflect"
+	"time"
 )
 
 func panicTest() (ret string) {
@@ -52,6 +53,8 @@ func main() {
 	fmt.Printf("%s\n", t.Kind())
 	fmt.Printf("%s\n", mt.Name())
 	fmt.Printf("%s\n", mt.Kind())
+
+	fmt.Println(time.Now().Format("2006-01-02 15:04:05.000"))
 
 	fmt.Println(panicTest())
 }
