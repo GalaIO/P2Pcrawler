@@ -9,8 +9,8 @@ import (
 var testNodeId = "abcdefghij0123456789"
 
 func TestHandlePingMsg(t *testing.T) {
-	RegisteHandler("ping", func(ctx *QueryCtx) misc.Dict {
-		return misc.Dict{"id": "mnopqrstuvwxyz123456"}
+	RegisteHandler("ping", func(req Request) Response {
+		return WithResponse(req.TxId(), misc.Dict{"id": "mnopqrstuvwxyz123456"})
 	})
 
 	resp := requestHandle(misc.Dict{"t": "aa", "y": "q", "q": "ping", "a": misc.Dict{"id": "abcdefghij0123456789"}})
@@ -21,8 +21,8 @@ func TestHandlePingMsg(t *testing.T) {
 }
 
 func TestHandleFindNodeMsg(t *testing.T) {
-	RegisteHandler("find_node", func(ctx *QueryCtx) misc.Dict {
-		return misc.Dict{"id": "0123456789abcdefghij", "nodes": "def456..."}
+	RegisteHandler("find_node", func(req Request) Response {
+		return WithResponse(req.TxId(), misc.Dict{"id": "0123456789abcdefghij", "nodes": "def456..."})
 	})
 
 	resp := requestHandle(misc.Dict{"t": "aa", "y": "q", "q": "find_node", "a": misc.Dict{"id": "abcdefghij0123456789", "target": "mnopqrstuvwxyz123456"}})

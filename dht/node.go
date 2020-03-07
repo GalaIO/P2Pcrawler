@@ -1,10 +1,11 @@
-package krpc
+package dht
 
 import (
 	"crypto/sha1"
 	"encoding/binary"
 	"encoding/hex"
 	"github.com/GalaIO/P2Pcrawler/misc"
+	"log"
 	"net"
 	"strings"
 	"sync"

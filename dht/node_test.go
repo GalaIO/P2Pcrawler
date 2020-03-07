@@ -1,4 +1,4 @@
-package krpc
+package dht
 
 import (
 	"encoding/hex"

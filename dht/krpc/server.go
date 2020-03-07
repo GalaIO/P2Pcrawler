@@ -9,7 +9,6 @@ var serverLogger = misc.GetLogger().SetPrefix("server")
 var supportQueryType = misc.List{"ping", "find_node", "get_peers", "announce_peer"}
 
 var serverConn = StartUp(":21000")
-var txIdGen = NewTxIdGenerator(100)
 var reqestHandlerRouter = misc.NewSyncMap(4)
 var requestMapping = misc.NewSyncMap(100)
 
@@ -25,20 +24,6 @@ func RegisteHandler(qType string, handler ReqHandlerFunc) {
 	}
 
 	reqestHandlerRouter.Put(qType, handler)
-}
-
-// bootstrap find myself
-func BootStrap(host string, handler RespHandlerFunc) {
-	msg := WithFindNodeMsg(txIdGen.Next(), LocalNodeId, LocalNodeId, handler)
-	raddr, err := net.ResolveUDPAddr("udp", host)
-	if err != nil {
-		serverLogger.Panic("bootstrap resolve host err", misc.Dict{"host": host, "err": err})
-	}
-
-	err = Query(raddr, msg)
-	if err != nil {
-		serverLogger.Panic("bootstrap findnode err", misc.Dict{"host": host, "err": err})
-	}
 }
 
 // the server main routinue, will listen and handle msg
@@ -119,30 +104,12 @@ func responseHandle(dict misc.Dict) {
 	handler, exist := requestMapping.Get(txId)
 
 	if !exist {
-		serverLogger.Error("cannot match request", misc.Dict{"txId": txId})
+		serverLogger.Error("cannot match request", misc.Dict{"txId": txId, "nodeId": nodeId})
 		return
 	}
 
 	req := handler.(Request)
-	var resp Response
-	switch req.Type() {
-	case "ping":
-		resp = WithPingResponse(txId, nodeId)
-	case "find_node":
-		nodes := body.GetString("nodes")
-		resp = WithFindNodeResponse(txId, nodeId, parseNodeInfo(nodes))
-	case "get_peers":
-		existVals := body.Exist("values")
-		if existVals {
-			vals := body.GetList("values")
-			resp = WithGetPeersValsResponse(txId, nodeId, txId, parsePeerInfo(vals))
-		} else {
-			nodes := body.GetString("nodes")
-			resp = WithGetPeersNodesResponse(txId, nodeId, txId, parseNodeInfo(nodes))
-		}
-	case "announce_peer":
-		resp = WithAnnouncePeerResponse(txId, nodeId)
-	}
+	resp := WithResponse(txId, body)
 	req.Handler()(req, resp)
 }
 
