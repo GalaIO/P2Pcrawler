@@ -1,11 +1,38 @@
 package krpc
 
 import (
+	"crypto/sha1"
 	"encoding/binary"
+	"encoding/hex"
 	"github.com/GalaIO/P2Pcrawler/misc"
 	"net"
 	"strings"
+	"sync"
 )
+
+var LocalNodeId = generateNodeId("galaio.p2pclawer")
+
+type TxIdGenerator struct {
+	sync.Mutex
+	txId uint16
+}
+
+func NewTxIdGenerator(init uint16) *TxIdGenerator {
+	return &TxIdGenerator{txId: init}
+}
+
+func (g *TxIdGenerator) nextVal() uint16 {
+	g.Lock()
+	defer g.Unlock()
+	g.txId++
+	return g.txId
+}
+
+func (g *TxIdGenerator) Next() string {
+	bytes := make([]byte, 2)
+	binary.BigEndian.PutUint16(bytes, g.nextVal())
+	return hex.EncodeToString(bytes)
+}
 
 type NodeInfo struct {
 	Id   string
@@ -79,4 +106,9 @@ func joinPeerInfos(addrs []*net.UDPAddr) misc.List {
 		vals[i] = builder.String()
 	}
 	return vals
+}
+
+func generateNodeId(str string) string {
+	sha160 := sha1.Sum([]byte(str))
+	return string(sha160[:])
 }

@@ -4,7 +4,11 @@ import (
 	"github.com/GalaIO/P2Pcrawler/misc"
 )
 
-var supportQueryType misc.List = misc.List{"ping", "find_node", "get_peers", "announce_peer"}
+var supportQueryType = misc.List{"ping", "find_node", "get_peers", "announce_peer"}
+
+var defaultConn = StartUp(":21000")
+var defaultTxIdGen = NewTxIdGenerator(100)
+var queriesHandlerMap = make(map[string]QueryHandler, 4)
 
 // query handle context
 type QueryCtx struct {
@@ -25,8 +29,6 @@ func NewQueryCtx(txId, sourceId, qType string, body misc.Dict) *QueryCtx {
 
 type QueryHandler func(ctx *QueryCtx) misc.Dict
 
-var queriesHandlerMap = make(map[string]QueryHandler, 4)
-
 func RegisteQueryHandler(qType string, handler QueryHandler) {
 	if !supportQueryType.ContainsString(qType) {
 		panic("cannot support the query type")
@@ -39,17 +41,20 @@ func RegisteQueryHandler(qType string, handler QueryHandler) {
 	queriesHandlerMap[qType] = handler
 }
 
+//func BootStrap(host string) error {
+//	defaultConn.SendPacketToHost(withFindNodeMsg())
+//}
+
 // query handler
-func queriesHandle(resp misc.Dict) (ret Response) {
+func queryHandle(resp misc.Dict) (ret Response) {
 
 	defer func() {
 		if err := recover(); err != nil {
-			//dhtError, ok := err.(*misc.Error)
-			_, ok := err.(*misc.Error)
+			dhtError, ok := err.(*misc.Error)
 			if !ok {
 				panic(err)
 			}
-			//ret = withParamErr(dhtError.Error())
+			ret = withParamErr("aa", dhtError.Error())
 		}
 	}()
 
@@ -57,12 +62,12 @@ func queriesHandle(resp misc.Dict) (ret Response) {
 	txId := resp.GetString("t")
 	queryType := resp.GetString("q")
 	if !supportQueryType.ContainsString(queryType) {
-		//return withParamErr("donnot support <" + queryType + "> query type")
+		return withParamErr(txId, "donnot support <"+queryType+"> query type")
 	}
 	body := resp.GetDict("a")
 	sourceId := body.GetString("id")
 	if len(sourceId) != 20 {
-		//return withParamErr("id format err")
+		return withParamErr(txId, "id format err")
 	}
 
 	// do handle

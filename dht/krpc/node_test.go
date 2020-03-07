@@ -23,3 +23,14 @@ func TestAddrParse(t *testing.T) {
 	addrs := parsePeerInfo(vals)
 	assert.Equal(t, vals, joinPeerInfos(addrs))
 }
+
+func TestGenNodeId(t *testing.T) {
+	t.Log(generateNodeId("test"))
+}
+
+func TestGenTxId(t *testing.T) {
+	txIdGenerator := NewTxIdGenerator(100)
+	t.Log(txIdGenerator.Next())
+	t.Log(txIdGenerator.Next())
+	t.Log(txIdGenerator.Next())
+}
