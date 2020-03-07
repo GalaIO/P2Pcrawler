@@ -40,15 +40,16 @@ func RegisteQueryHandler(qType string, handler QueryHandler) {
 }
 
 // query handler
-func queriesHandle(resp misc.Dict) (ret misc.Dict) {
+func queriesHandle(resp misc.Dict) (ret Response) {
 
 	defer func() {
 		if err := recover(); err != nil {
-			dhtError, ok := err.(*misc.Error)
+			//dhtError, ok := err.(*misc.Error)
+			_, ok := err.(*misc.Error)
 			if !ok {
 				panic(err)
 			}
-			ret = withParamErr(dhtError.Error())
+			//ret = withParamErr(dhtError.Error())
 		}
 	}()
 
@@ -56,12 +57,12 @@ func queriesHandle(resp misc.Dict) (ret misc.Dict) {
 	txId := resp.GetString("t")
 	queryType := resp.GetString("q")
 	if !supportQueryType.ContainsString(queryType) {
-		return withParamErr("donnot support <" + queryType + "> query type")
+		//return withParamErr("donnot support <" + queryType + "> query type")
 	}
 	body := resp.GetDict("a")
 	sourceId := body.GetString("id")
 	if len(sourceId) != 20 {
-		return withParamErr("id format err")
+		//return withParamErr("id format err")
 	}
 
 	// do handle

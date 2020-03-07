@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/GalaIO/P2Pcrawler/misc"
+	"net"
 )
 
 type Response interface {
@@ -17,15 +18,13 @@ type Response interface {
 
 type BaseResponse struct {
 	txId  string
-	qType string
 	body  misc.Dict
 	isErr bool
 }
 
-func NewBaseResponse(txId, qType string, isErr bool, body misc.Dict) Response {
+func NewBaseResponse(txId string, isErr bool, body misc.Dict) Response {
 	return &BaseResponse{
 		txId:  txId,
-		qType: qType,
 		body:  body,
 		isErr: isErr,
 	}
@@ -48,14 +47,19 @@ func (b *BaseResponse) Error() bool {
 }
 
 func (b *BaseResponse) RawData() misc.Dict {
-	respType := "r"
-	if b.isErr {
-		respType = "e"
+	if !b.isErr {
+		return misc.Dict{
+			"t": b.txId,
+			"y": "r",
+			"r": b.body,
+		}
 	}
+	code := b.body.GetInteger("code")
+	msg := b.body.GetString("msg")
 	return misc.Dict{
 		"t": b.txId,
-		"y": respType,
-		"r": b.body,
+		"y": "e",
+		"e": misc.List{code, msg},
 	}
 }
 
@@ -130,24 +134,67 @@ func (b *BaseRequest) String() string {
 }
 
 // response
-func withResponse(txId string, resp misc.Dict) misc.Dict {
-	return misc.Dict{
-		"t": txId,
-		"y": "r",
-		"r": resp,
+func withResponse(txId string, resp misc.Dict) Response {
+	return &BaseResponse{
+		txId:  txId,
+		body:  resp,
+		isErr: false,
+	}
+}
+func withPingResponse(txId, nodeId string) Response {
+	return &BaseResponse{
+		txId:  txId,
+		body:  misc.Dict{"id": nodeId},
+		isErr: false,
+	}
+}
+
+func withFindNodeResponse(txId string, nodeId string, nodes []*NodeInfo) Response {
+	return &BaseResponse{
+		txId:  txId,
+		body:  misc.Dict{"id": nodeId, "nodes": joinNodeInfos(nodes)},
+		isErr: false,
+	}
+}
+
+func withGetPeersValsResponse(txId, nodeId, token string, addrs []*net.UDPAddr) Response {
+	return &BaseResponse{
+		txId:  txId,
+		body:  misc.Dict{"id": nodeId, "token": token, "values": joinPeerInfos(addrs)},
+		isErr: false,
+	}
+}
+
+func withGetPeersNodesResponse(txId, nodeId, token string, nodes []*NodeInfo) Response {
+	return &BaseResponse{
+		txId:  txId,
+		body:  misc.Dict{"id": nodeId, "token": token, "nodes": joinNodeInfos(nodes)},
+		isErr: false,
+	}
+}
+
+func withAnnouncePeerResponse(txId string, nodeId string) Response {
+	return &BaseResponse{
+		txId:  txId,
+		body:  misc.Dict{"id": nodeId},
+		isErr: false,
 	}
 }
 
 // error
-func withParamErr(msg string) misc.Dict {
+func withErr(txId string, code int, errMsg string) Response {
+	return &BaseResponse{
+		txId:  txId,
+		body:  misc.Dict{"code": code, "msg": errMsg},
+		isErr: true,
+	}
+}
+
+func withParamErr(txId string, msg string) Response {
 	if len(msg) <= 0 {
 		msg = "invalid param"
 	}
-	return withErr(misc.ProtocolErr, msg)
-}
-
-func withErr(code misc.ErrCode, errMsg string) misc.Dict {
-	return misc.Dict{"t": "aa", "y": "e", "e": misc.List{code, errMsg}}
+	return withErr(txId, int(misc.ProtocolErr), msg)
 }
 
 // define query msg
@@ -161,5 +208,22 @@ func withFindNodeMsg(txId string, nodeId, target string, handler RespHandlerFunc
 	return NewBaseRequest(txId, "find_node", misc.Dict{
 		"id":     nodeId,
 		"target": target,
+	}, handler)
+}
+
+func withGetPeersMsg(txId, nodeId, infoHash string, handler RespHandlerFunc) Request {
+	return NewBaseRequest(txId, "get_peers", misc.Dict{
+		"id":        nodeId,
+		"info_hash": infoHash,
+	}, handler)
+}
+
+func withAnnouncePeerMsg(txId, nodeId, infoHash, token string, port int, handler RespHandlerFunc) Request {
+	return NewBaseRequest(txId, "announce_peer", misc.Dict{
+		"id":           nodeId,
+		"info_hash":    infoHash,
+		"port":         port,
+		"token":        token,
+		"implied_port": 0,
 	}, handler)
 }

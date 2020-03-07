@@ -44,6 +44,11 @@ func (d *Dict) GetVal(key string) interface{} {
 	return val
 }
 
+func (d *Dict) Exist(key string) bool {
+	_, exist := (*d)[key]
+	return exist
+}
+
 type List []interface{}
 
 func (l *List) GetVal(index int) interface{} {
@@ -80,6 +85,10 @@ func (l *List) GetDict(index int) Dict {
 		PanicBizErr("val cannot match type of Dict")
 	}
 	return val
+}
+
+func (l *List) Exist(index int) bool {
+	return len(*l) > index
 }
 
 func (l *List) ContainsString(target string) bool {
