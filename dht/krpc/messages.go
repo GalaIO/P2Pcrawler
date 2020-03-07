@@ -134,14 +134,14 @@ func (b *BaseRequest) String() string {
 }
 
 // response
-func withResponse(txId string, resp misc.Dict) Response {
+func WithResponse(txId string, resp misc.Dict) Response {
 	return &BaseResponse{
 		txId:  txId,
 		body:  resp,
 		isErr: false,
 	}
 }
-func withPingResponse(txId, nodeId string) Response {
+func WithPingResponse(txId, nodeId string) Response {
 	return &BaseResponse{
 		txId:  txId,
 		body:  misc.Dict{"id": nodeId},
@@ -149,7 +149,7 @@ func withPingResponse(txId, nodeId string) Response {
 	}
 }
 
-func withFindNodeResponse(txId string, nodeId string, nodes []*NodeInfo) Response {
+func WithFindNodeResponse(txId string, nodeId string, nodes []*NodeInfo) Response {
 	return &BaseResponse{
 		txId:  txId,
 		body:  misc.Dict{"id": nodeId, "nodes": joinNodeInfos(nodes)},
@@ -157,7 +157,7 @@ func withFindNodeResponse(txId string, nodeId string, nodes []*NodeInfo) Respons
 	}
 }
 
-func withGetPeersValsResponse(txId, nodeId, token string, addrs []*net.UDPAddr) Response {
+func WithGetPeersValsResponse(txId, nodeId, token string, addrs []*net.UDPAddr) Response {
 	return &BaseResponse{
 		txId:  txId,
 		body:  misc.Dict{"id": nodeId, "token": token, "values": joinPeerInfos(addrs)},
@@ -165,7 +165,7 @@ func withGetPeersValsResponse(txId, nodeId, token string, addrs []*net.UDPAddr) 
 	}
 }
 
-func withGetPeersNodesResponse(txId, nodeId, token string, nodes []*NodeInfo) Response {
+func WithGetPeersNodesResponse(txId, nodeId, token string, nodes []*NodeInfo) Response {
 	return &BaseResponse{
 		txId:  txId,
 		body:  misc.Dict{"id": nodeId, "token": token, "nodes": joinNodeInfos(nodes)},
@@ -173,7 +173,7 @@ func withGetPeersNodesResponse(txId, nodeId, token string, nodes []*NodeInfo) Re
 	}
 }
 
-func withAnnouncePeerResponse(txId string, nodeId string) Response {
+func WithAnnouncePeerResponse(txId string, nodeId string) Response {
 	return &BaseResponse{
 		txId:  txId,
 		body:  misc.Dict{"id": nodeId},
@@ -182,7 +182,7 @@ func withAnnouncePeerResponse(txId string, nodeId string) Response {
 }
 
 // error
-func withErr(txId string, code int, errMsg string) Response {
+func WithErr(txId string, code int, errMsg string) Response {
 	return &BaseResponse{
 		txId:  txId,
 		body:  misc.Dict{"code": code, "msg": errMsg},
@@ -190,35 +190,35 @@ func withErr(txId string, code int, errMsg string) Response {
 	}
 }
 
-func withParamErr(txId string, msg string) Response {
+func WithParamErr(txId string, msg string) Response {
 	if len(msg) <= 0 {
 		msg = "invalid param"
 	}
-	return withErr(txId, int(misc.ProtocolErr), msg)
+	return WithErr(txId, int(misc.ProtocolErr), msg)
 }
 
 // define query msg
-func withPingMsg(txId string, nodeId string, handler RespHandlerFunc) Request {
+func WithPingMsg(txId string, nodeId string, handler RespHandlerFunc) Request {
 	return NewBaseRequest(txId, "ping", misc.Dict{
 		"id": nodeId,
 	}, handler)
 }
 
-func withFindNodeMsg(txId string, nodeId, target string, handler RespHandlerFunc) Request {
+func WithFindNodeMsg(txId string, nodeId, target string, handler RespHandlerFunc) Request {
 	return NewBaseRequest(txId, "find_node", misc.Dict{
 		"id":     nodeId,
 		"target": target,
 	}, handler)
 }
 
-func withGetPeersMsg(txId, nodeId, infoHash string, handler RespHandlerFunc) Request {
+func WithGetPeersMsg(txId, nodeId, infoHash string, handler RespHandlerFunc) Request {
 	return NewBaseRequest(txId, "get_peers", misc.Dict{
 		"id":        nodeId,
 		"info_hash": infoHash,
 	}, handler)
 }
 
-func withAnnouncePeerMsg(txId, nodeId, infoHash, token string, port int, handler RespHandlerFunc) Request {
+func WithAnnouncePeerMsg(txId, nodeId, infoHash, token string, port int, handler RespHandlerFunc) Request {
 	return NewBaseRequest(txId, "announce_peer", misc.Dict{
 		"id":           nodeId,
 		"info_hash":    infoHash,

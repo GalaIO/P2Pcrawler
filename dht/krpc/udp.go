@@ -2,10 +2,11 @@ package krpc
 
 import (
 	"github.com/GalaIO/P2Pcrawler/misc"
+	"log"
 	"net"
 )
 
-var log = misc.GetLogger().SetPrefix("udp")
+var udpLogger = misc.GetLogger().SetPrefix("udp")
 
 // define udp receive length, when packet is too large, will be ignore
 var RecvPacketLen = 1024
@@ -23,24 +24,24 @@ type UdpServer struct {
 }
 
 func (s *UdpServer) Close() error {
-	log.Trace("conn close...", misc.Dict{"laddr": s.laddr})
+	udpLogger.Trace("conn close...", misc.Dict{"laddr": s.laddr})
 	return s.conn.Close()
 }
 
 func (s *UdpServer) SendPacket(bytes []byte, raddr *net.UDPAddr) error {
 	n, err := s.conn.WriteToUDP(bytes, raddr)
 	if err != nil {
-		log.Error(">>> send udp err", misc.Dict{"laddr": s.laddr, "err": err})
+		udpLogger.Error(">>> send udp err", misc.Dict{"laddr": s.laddr, "err": err})
 		return err
 	}
-	log.Info(">>> send Bytes", misc.Dict{"laddr": s.laddr, "raddr": raddr.String(), "length": n})
+	udpLogger.Info(">>> send Bytes", misc.Dict{"laddr": s.laddr, "raddr": raddr.String(), "length": n})
 	return nil
 }
 
 func (s *UdpServer) SendPacketToHost(bytes []byte, remoteAddr string) error {
 	raddr, err := net.ResolveUDPAddr("udp", remoteAddr)
 	if err != nil {
-		log.Error("resolve remote host err", misc.Dict{"raddr": remoteAddr, "err": err})
+		udpLogger.Error("resolve remote host err", misc.Dict{"raddr": remoteAddr, "err": err})
 		return err
 	}
 
@@ -51,17 +52,18 @@ func (s *UdpServer) RecvChan() chan RecvPacket {
 	return s.recvq
 }
 
+// startup a udp server, listening on target port
 func StartUp(localAddr string) *UdpServer {
 	laddr, err := net.ResolveUDPAddr("udp", localAddr)
 	if err != nil {
-		log.Panic("resolve local host err", misc.Dict{"laddr": laddr, "err": err})
+		udpLogger.Panic("resolve local host err", misc.Dict{"laddr": laddr, "err": err})
 	}
 
 	serverConn, err := net.ListenUDP("udp", laddr)
 	if err != nil {
 		log.Panic("listen udp err", misc.Dict{"laddr": laddr, "err": err})
 	}
-	log.Trace("listen udp...", misc.Dict{"laddr": laddr})
+	udpLogger.Trace("listen udp...", misc.Dict{"laddr": laddr})
 
 	server := &UdpServer{
 		laddr: laddr,
@@ -78,10 +80,10 @@ func recvRoutiue(srv *UdpServer) {
 		buf := make([]byte, RecvPacketLen)
 		n, raddr, err := conn.ReadFromUDP(buf)
 		if err != nil {
-			log.Error("<<< receive udp err", misc.Dict{"err": err})
+			udpLogger.Error("<<< receive udp err", misc.Dict{"err": err})
 			continue
 		}
-		log.Info("<<< received Bytes", misc.Dict{"raddr": raddr.String(), "length": n})
+		udpLogger.Info("<<< received Bytes", misc.Dict{"raddr": raddr.String(), "length": n})
 		srv.recvq <- RecvPacket{Addr: raddr, Bytes: buf[:n]}
 	}
 }

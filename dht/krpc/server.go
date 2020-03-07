@@ -2,34 +2,20 @@ package krpc
 
 import (
 	"github.com/GalaIO/P2Pcrawler/misc"
+	"net"
 )
 
+var serverLogger = misc.GetLogger().SetPrefix("server")
 var supportQueryType = misc.List{"ping", "find_node", "get_peers", "announce_peer"}
 
-var defaultConn = StartUp(":21000")
-var defaultTxIdGen = NewTxIdGenerator(100)
-var queriesHandlerMap = make(map[string]QueryHandler, 4)
+var serverConn = StartUp(":21000")
+var txIdGen = NewTxIdGenerator(100)
+var reqestHandlerRouter = misc.NewSyncMap(4)
+var requestMapping = misc.NewSyncMap(100)
 
-// query handle context
-type QueryCtx struct {
-	txId     string
-	qType    string
-	sourceId string
-	body     misc.Dict
-}
+type ReqHandlerFunc func(req Request) Response
 
-func NewQueryCtx(txId, sourceId, qType string, body misc.Dict) *QueryCtx {
-	return &QueryCtx{
-		txId:     txId,
-		sourceId: sourceId,
-		qType:    qType,
-		body:     body,
-	}
-}
-
-type QueryHandler func(ctx *QueryCtx) misc.Dict
-
-func RegisteQueryHandler(qType string, handler QueryHandler) {
+func RegisteHandler(qType string, handler ReqHandlerFunc) {
 	if !supportQueryType.ContainsString(qType) {
 		panic("cannot support the query type")
 	}
@@ -38,39 +24,159 @@ func RegisteQueryHandler(qType string, handler QueryHandler) {
 		panic("register fail, handler is nil")
 	}
 
-	queriesHandlerMap[qType] = handler
+	reqestHandlerRouter.Put(qType, handler)
 }
 
-//func BootStrap(host string) error {
-//	defaultConn.SendPacketToHost(withFindNodeMsg())
-//}
+// bootstrap find myself
+func BootStrap(host string, handler RespHandlerFunc) {
+	msg := WithFindNodeMsg(txIdGen.Next(), LocalNodeId, LocalNodeId, handler)
+	raddr, err := net.ResolveUDPAddr("udp", host)
+	if err != nil {
+		serverLogger.Panic("bootstrap resolve host err", misc.Dict{"host": host, "err": err})
+	}
 
-// query handler
-func queryHandle(resp misc.Dict) (ret Response) {
+	err = Query(raddr, msg)
+	if err != nil {
+		serverLogger.Panic("bootstrap findnode err", misc.Dict{"host": host, "err": err})
+	}
+}
+
+// the server main routinue, will listen and handle msg
+func Server() {
+	for {
+		packet := <-serverConn.RecvChan()
+		serverLogger.Info("<<<  Bytes received", misc.Dict{"from": packet.Addr.String(), "len": len(packet.Bytes)})
+
+		go recvPacketHandle(packet)
+	}
+}
+
+func Query(raddr *net.UDPAddr, req Request) error {
+	requestMapping.Put(req.TxId(), req)
+	raw, err := misc.EncodeDict(req.RawData())
+	if err != nil {
+		serverLogger.Error("encode request err", misc.Dict{"to": raddr.String(), "query": req.String(), "err": err})
+		return err
+	}
+	err = serverConn.SendPacket([]byte(raw), raddr)
+	if err != nil {
+		serverLogger.Error("send query packet err", misc.Dict{"to": raddr.String(), "query": req.String(), "err": err})
+		return err
+	}
+	serverLogger.Info(">>>  Bytes sended", misc.Dict{"to": raddr.String(), "len": len(raw)})
+	return nil
+}
+
+func recvPacketHandle(packet RecvPacket) {
 
 	defer func() {
 		if err := recover(); err != nil {
+			serverLogger.Error("recv packet handle panic", misc.Dict{"from": packet.Addr.String(), "err": err})
+		}
+	}()
+
+	// parse packet
+	dict, err := misc.DecodeDict(string(packet.Bytes))
+	if err != nil {
+		serverLogger.Error("decode bencode err", misc.Dict{"from": packet.Addr.String(), "err": err})
+		return
+	}
+	if exist := dict.Exist("y"); !exist {
+		serverLogger.Error("cannot handle packet err", misc.Dict{"from": packet.Addr.String()})
+		return
+	}
+	switch dict.GetString("y") {
+	case "q":
+		ret := requestHandle(dict)
+		bytes, err := misc.EncodeDict(ret.RawData())
+		if err != nil {
+			serverLogger.Error("encode response err", misc.Dict{"from": packet.Addr.String(), "dict": ret.String()})
+		}
+		err = serverConn.SendPacket([]byte(bytes), packet.Addr)
+		serverLogger.Info(">>>  Bytes sended", misc.Dict{"to": packet.Addr.String(), "len": len(bytes)})
+	case "r":
+		responseHandle(dict)
+	case "e":
+		responseErrHandle(dict)
+	}
+}
+
+// err handler
+func responseErrHandle(err misc.Dict) {
+	// parse header
+	txId := err.GetString("t")
+	list := err.GetList("e")
+	serverLogger.Error("return err", misc.Dict{"txId": txId, "err": list})
+}
+
+// response handler
+func responseHandle(dict misc.Dict) {
+
+	// parse header
+	txId := dict.GetString("t")
+	body := dict.GetDict("r")
+	nodeId := body.GetString("nodeId")
+	handler, exist := requestMapping.Get(txId)
+
+	if !exist {
+		serverLogger.Error("cannot match request", misc.Dict{"txId": txId})
+		return
+	}
+
+	req := handler.(Request)
+	var resp Response
+	switch req.Type() {
+	case "ping":
+		resp = WithPingResponse(txId, nodeId)
+	case "find_node":
+		nodes := body.GetString("nodes")
+		resp = WithFindNodeResponse(txId, nodeId, parseNodeInfo(nodes))
+	case "get_peers":
+		existVals := body.Exist("values")
+		if existVals {
+			vals := body.GetList("values")
+			resp = WithGetPeersValsResponse(txId, nodeId, txId, parsePeerInfo(vals))
+		} else {
+			nodes := body.GetString("nodes")
+			resp = WithGetPeersNodesResponse(txId, nodeId, txId, parseNodeInfo(nodes))
+		}
+	case "announce_peer":
+		resp = WithAnnouncePeerResponse(txId, nodeId)
+	}
+	req.Handler()(req, resp)
+}
+
+// query handler
+func requestHandle(resp misc.Dict) (ret Response) {
+
+	txId := resp.GetString("t")
+	defer func() {
+		if err := recover(); err != nil {
+			serverLogger.Error("request handle panic", misc.Dict{"err": err})
 			dhtError, ok := err.(*misc.Error)
 			if !ok {
 				panic(err)
 			}
-			ret = withParamErr("aa", dhtError.Error())
+			ret = WithParamErr(txId, dhtError.Error())
 		}
 	}()
 
 	// parse header
-	txId := resp.GetString("t")
 	queryType := resp.GetString("q")
 	if !supportQueryType.ContainsString(queryType) {
-		return withParamErr(txId, "donnot support <"+queryType+"> query type")
+		return WithParamErr(txId, "donnot support <"+queryType+"> query type")
 	}
 	body := resp.GetDict("a")
 	sourceId := body.GetString("id")
 	if len(sourceId) != 20 {
-		return withParamErr(txId, "id format err")
+		return WithParamErr(txId, "id format err")
 	}
 
-	// do handle
-	handler := queriesHandlerMap[queryType]
-	return withResponse(txId, handler(NewQueryCtx(txId, sourceId, queryType, body)))
+	req := NewBaseRequest(txId, queryType, body, nil)
+	handler, exist := reqestHandlerRouter.Get(queryType)
+	if !exist {
+		return WithParamErr(txId, "cannot handle not match handler")
+	}
+	handlerFunc := handler.(ReqHandlerFunc)
+	return handlerFunc(req)
 }

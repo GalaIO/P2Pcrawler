@@ -3,7 +3,7 @@ package test
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/GalaIO/P2Pcrawler/dht"
+	"github.com/GalaIO/P2Pcrawler/misc"
 	"log"
 	"testing"
 )
@@ -17,7 +17,7 @@ func TestDecode(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	dicts, err := dht.DecodeDict(string(bytes))
+	dicts, err := misc.DecodeDict(string(bytes))
 	if err != nil {
 		log.Fatal(err)
 	}

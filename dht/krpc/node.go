@@ -22,8 +22,8 @@ func NewTxIdGenerator(init uint16) *TxIdGenerator {
 }
 
 func (g *TxIdGenerator) nextVal() uint16 {
-	g.Lock()
 	defer g.Unlock()
+	g.Lock()
 	g.txId++
 	return g.txId
 }
