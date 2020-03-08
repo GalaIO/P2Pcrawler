@@ -148,7 +148,7 @@ func (s *RpcServer) responseHandle(dict misc.Dict) {
 	txId := dict.GetString("t")
 	body := dict.GetDict("r")
 	nodeId := body.GetString("id")
-	serverLogger.Info("response handle", misc.Dict{"txId": txId, "nodeId": nodeId})
+	serverLogger.Info("response handle", misc.Dict{"txId": txId, "nodeId": hex.EncodeToString([]byte(nodeId))})
 	handler, exist := s.requestMapping.Get(txId)
 
 	if !exist {
