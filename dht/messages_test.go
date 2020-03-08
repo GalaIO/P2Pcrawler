@@ -50,7 +50,8 @@ func TestHandleQueryResp(t *testing.T) {
 
 	var req krpc.Request
 
-	req = WithPingMsg("aa", testNodeId, func(req krpc.Request, resp krpc.Response) {
+	req = WithPingMsg("aa", testNodeId, func(ctx *krpc.RpcContext) {
+		resp := ctx.Response()
 		assert.Equal(t, "aa", resp.TxId())
 		assert.Equal(t, false, resp.Error())
 		assert.Equal(t, "mnopqrstuvwxyz123456", resp.NodeId())
@@ -58,36 +59,43 @@ func TestHandleQueryResp(t *testing.T) {
 		assert.Equal(t, "mnopqrstuvwxyz123456", body.GetString("id"))
 		assert.Equal(t, misc.Dict{"id": "mnopqrstuvwxyz123456"}, body)
 	})
-	req.Handler()(req, WithPingResponse(req.TxId(), "mnopqrstuvwxyz123456"))
+	req.Handler()(metgetReqAndResp(req, WithPingResponse(req.TxId(), "mnopqrstuvwxyz123456")))
 
-	req = WithFindNodeMsg("aa", "abcdefghij0123456789", "mnopqrstuvwxyz123456", func(req krpc.Request, resp krpc.Response) {
+	req = WithFindNodeMsg("aa", "abcdefghij0123456789", "mnopqrstuvwxyz123456", func(ctx *krpc.RpcContext) {
+		resp := ctx.Response()
 		body := resp.Body()
 		nodes := body.GetString("nodes")
 		nodeInfos := parseNodeInfo(nodes)
 		assert.Equal(t, "mnopqrstuvwxyz123456", nodeInfos[0].Id)
 		assert.Equal(t, "127.0.0.1:9000", nodeInfos[0].Addr.String())
 	})
-	req.Handler()(req, WithFindNodeResponse(req.TxId(), "mnopqrstuvwxyz123456", []*NodeInfo{NewNodeInfoFromHost("mnopqrstuvwxyz123456", "127.0.0.1:9000")}))
+	req.Handler()(metgetReqAndResp(req, WithFindNodeResponse(req.TxId(), "mnopqrstuvwxyz123456", []*NodeInfo{NewNodeInfoFromHost("mnopqrstuvwxyz123456", "127.0.0.1:9000")})))
 
-	req = WithGetPeersMsg("aa", "abcdefghij0123456789", "mnopqrstuvwxyz123456", func(req krpc.Request, resp krpc.Response) {
+	req = WithGetPeersMsg("aa", "abcdefghij0123456789", "mnopqrstuvwxyz123456", func(ctx *krpc.RpcContext) {
+		resp := ctx.Response()
 		body := resp.Body()
 		assert.True(t, body.Exist("values"))
 		vals := body.GetList("values")
 		assert.Equal(t, "127.0.0.1:9000", parsePeerInfo(vals)[0].String())
 	})
-	req.Handler()(req, WithGetPeersValsResponse(req.TxId(), "mnopqrstuvwxyz123456", "aoeusnth", []*net.UDPAddr{resolveHost("127.0.0.1:9000")}))
+	req.Handler()(metgetReqAndResp(req, WithGetPeersValsResponse(req.TxId(), "mnopqrstuvwxyz123456", "aoeusnth", []*net.UDPAddr{resolveHost("127.0.0.1:9000")})))
 
-	req = WithGetPeersMsg("aa", "abcdefghij0123456789", "mnopqrstuvwxyz123456", func(req krpc.Request, resp krpc.Response) {
+	req = WithGetPeersMsg("aa", "abcdefghij0123456789", "mnopqrstuvwxyz123456", func(ctx *krpc.RpcContext) {
+		resp := ctx.Response()
 		body := resp.Body()
 		assert.True(t, body.Exist("nodes"))
 		infos := body.GetString("nodes")
 		assert.Equal(t, "127.0.0.1:9000", parseNodeInfo(infos)[0].Addr.String())
 	})
-	req.Handler()(req, WithGetPeersNodesResponse(req.TxId(), "mnopqrstuvwxyz123456", "aoeusnth", []*NodeInfo{NewNodeInfoFromHost("mnopqrstuvwxyz123456", "127.0.0.1:9000")}))
+	req.Handler()(metgetReqAndResp(req, WithGetPeersNodesResponse(req.TxId(), "mnopqrstuvwxyz123456", "aoeusnth", []*NodeInfo{NewNodeInfoFromHost("mnopqrstuvwxyz123456", "127.0.0.1:9000")})))
 
-	req = WithAnnouncePeerMsg("aa", "abcdefghij0123456789", "mnopqrstuvwxyz123456", "aoeusnth", 6881, func(req krpc.Request, resp krpc.Response) {
+	req = WithAnnouncePeerMsg("aa", "abcdefghij0123456789", "mnopqrstuvwxyz123456", "aoeusnth", 6881, func(ctx *krpc.RpcContext) {
+		resp := ctx.Response()
 		body := resp.Body()
 		assert.Equal(t, "mnopqrstuvwxyz123456", body.GetString("id"))
 	})
-	req.Handler()(req, WithAnnouncePeerResponse(req.TxId(), "mnopqrstuvwxyz123456"))
+	req.Handler()(metgetReqAndResp(req, WithAnnouncePeerResponse(req.TxId(), "mnopqrstuvwxyz123456")))
+}
+func metgetReqAndResp(req krpc.Request, resp krpc.Response) *krpc.RpcContext {
+	return krpc.NewReqContext(nil, req, resp)
 }

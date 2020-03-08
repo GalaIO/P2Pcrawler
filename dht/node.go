@@ -11,8 +11,6 @@ import (
 	"sync"
 )
 
-var LocalNodeId = generateNodeId("galaio.p2pclawer")
-
 type TxIdGenerator struct {
 	sync.Mutex
 	txId uint16

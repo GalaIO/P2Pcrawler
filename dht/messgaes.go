@@ -28,27 +28,27 @@ func WithAnnouncePeerResponse(txId string, nodeId string) krpc.Response {
 }
 
 // define query msg
-func WithPingMsg(txId string, nodeId string, handler krpc.RespHandlerFunc) krpc.Request {
+func WithPingMsg(txId string, nodeId string, handler krpc.RpcHandlerFunc) krpc.Request {
 	return krpc.NewBaseRequest(txId, "ping", misc.Dict{
 		"id": nodeId,
 	}, handler)
 }
 
-func WithFindNodeMsg(txId string, nodeId, target string, handler krpc.RespHandlerFunc) krpc.Request {
+func WithFindNodeMsg(txId string, nodeId, target string, handler krpc.RpcHandlerFunc) krpc.Request {
 	return krpc.NewBaseRequest(txId, "find_node", misc.Dict{
 		"id":     nodeId,
 		"target": target,
 	}, handler)
 }
 
-func WithGetPeersMsg(txId, nodeId, infoHash string, handler krpc.RespHandlerFunc) krpc.Request {
+func WithGetPeersMsg(txId, nodeId, infoHash string, handler krpc.RpcHandlerFunc) krpc.Request {
 	return krpc.NewBaseRequest(txId, "get_peers", misc.Dict{
 		"id":        nodeId,
 		"info_hash": infoHash,
 	}, handler)
 }
 
-func WithAnnouncePeerMsg(txId, nodeId, infoHash, token string, port int, handler krpc.RespHandlerFunc) krpc.Request {
+func WithAnnouncePeerMsg(txId, nodeId, infoHash, token string, port int, handler krpc.RpcHandlerFunc) krpc.Request {
 	return krpc.NewBaseRequest(txId, "announce_peer", misc.Dict{
 		"id":           nodeId,
 		"info_hash":    infoHash,

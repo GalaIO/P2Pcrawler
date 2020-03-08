@@ -8,13 +8,68 @@ import (
 var serverLogger = misc.GetLogger().SetPrefix("server")
 var supportQueryType = misc.List{"ping", "find_node", "get_peers", "announce_peer"}
 
-var serverConn *UdpServer
-var reqestHandlerRouter = misc.NewSyncMap(4)
-var requestMapping = misc.NewSyncMap(100)
+type RpcHandlerFunc func(ctx *RpcContext)
+type RpcServer struct {
+	udpConn             *UdpServer
+	reqestHandlerRouter *misc.SyncMap
+	requestMapping      *misc.SyncMap
+	reqHandlerChain     []RpcHandlerFunc
+	respHandlerChain    []RpcHandlerFunc
+}
 
-type ReqHandlerFunc func(req Request) Response
+func NewRpcServer(laddr string) *RpcServer {
+	udpConn := StartUdpServer(laddr)
+	return &RpcServer{
+		udpConn:             udpConn,
+		reqestHandlerRouter: misc.NewSyncMap(4),
+		requestMapping:      misc.NewSyncMap(100),
+		reqHandlerChain:     make([]RpcHandlerFunc, 0, 16),
+		respHandlerChain:    make([]RpcHandlerFunc, 0, 16),
+	}
+}
 
-func RegisteHandler(qType string, handler ReqHandlerFunc) {
+func (s *RpcServer) Listen() {
+	for {
+		packet := <-s.udpConn.RecvChan()
+		serverLogger.Info("<<<  Bytes received", misc.Dict{"from": packet.Addr.String(), "len": len(packet.Bytes)})
+
+		go s.recvPacketHandle(packet)
+	}
+}
+
+func (s *RpcServer) Close() {
+	if s.udpConn != nil {
+		s.udpConn.Close()
+		serverLogger.Info("close udp conn", nil)
+	}
+}
+
+func (s *RpcServer) UseReqHandlerMiddleware(handlerChain ...RpcHandlerFunc) {
+	s.reqHandlerChain = append(s.reqHandlerChain, handlerChain...)
+}
+
+func (s *RpcServer) UseRespHandlerMiddleware(handlerChain ...RpcHandlerFunc) {
+	s.respHandlerChain = append(s.respHandlerChain, handlerChain...)
+}
+
+func (s *RpcServer) doRequestHandle(req Request, reqHandler RpcHandlerFunc) Response {
+	executeChain := make([]RpcHandlerFunc, 0, len(s.reqHandlerChain))
+	executeChain = append(executeChain, s.reqHandlerChain...)
+	executeChain = append(executeChain, reqHandler)
+	ctx := NewReqContext(executeChain, req, nil)
+	ctx.Next()
+	return ctx.resp
+}
+
+func (s *RpcServer) doResponseHandle(req Request, resp Response) {
+	executeChain := make([]RpcHandlerFunc, 0, len(s.reqHandlerChain))
+	executeChain = append(executeChain, s.respHandlerChain...)
+	executeChain = append(executeChain, req.Handler())
+	ctx := NewReqContext(executeChain, req, resp)
+	ctx.Next()
+}
+
+func (s *RpcServer) RegisteHandler(qType string, handler RpcHandlerFunc) {
 	if !supportQueryType.ContainsString(qType) {
 		panic("cannot support the query type")
 	}
@@ -23,28 +78,18 @@ func RegisteHandler(qType string, handler ReqHandlerFunc) {
 		panic("register fail, handler is nil")
 	}
 
-	reqestHandlerRouter.Put(qType, handler)
+	s.reqestHandlerRouter.Put(qType, handler)
 }
 
-// the server main routinue, will listen and handle msg
-func Server() {
-	serverConn = StartUp(":21000")
-	for {
-		packet := <-serverConn.RecvChan()
-		serverLogger.Info("<<<  Bytes received", misc.Dict{"from": packet.Addr.String(), "len": len(packet.Bytes)})
-
-		go recvPacketHandle(packet)
-	}
-}
-
-func Query(raddr *net.UDPAddr, req Request) error {
-	requestMapping.Put(req.TxId(), req)
+// send query msg
+func (s *RpcServer) Query(raddr *net.UDPAddr, req Request) error {
+	s.requestMapping.Put(req.TxId(), req)
 	raw, err := misc.EncodeDict(req.RawData())
 	if err != nil {
 		serverLogger.Error("encode request err", misc.Dict{"to": raddr.String(), "query": req.String(), "err": err})
 		return err
 	}
-	err = serverConn.SendPacket([]byte(raw), raddr)
+	err = s.udpConn.SendPacket([]byte(raw), raddr)
 	if err != nil {
 		serverLogger.Error("send query packet err", misc.Dict{"to": raddr.String(), "query": req.String(), "err": err})
 		return err
@@ -53,7 +98,7 @@ func Query(raddr *net.UDPAddr, req Request) error {
 	return nil
 }
 
-func recvPacketHandle(packet RecvPacket) {
+func (s *RpcServer) recvPacketHandle(packet *RecvPacket) {
 
 	defer func() {
 		if err := recover(); err != nil {
@@ -73,22 +118,22 @@ func recvPacketHandle(packet RecvPacket) {
 	}
 	switch dict.GetString("y") {
 	case "q":
-		ret := requestHandle(dict)
+		ret := s.requestHandle(dict)
 		bytes, err := misc.EncodeDict(ret.RawData())
 		if err != nil {
 			serverLogger.Error("encode response err", misc.Dict{"from": packet.Addr.String(), "dict": ret.String()})
 		}
-		err = serverConn.SendPacket([]byte(bytes), packet.Addr)
+		err = s.udpConn.SendPacket([]byte(bytes), packet.Addr)
 		serverLogger.Info(">>>  Bytes sended", misc.Dict{"to": packet.Addr.String(), "len": len(bytes)})
 	case "r":
-		responseHandle(dict)
+		s.responseHandle(dict)
 	case "e":
-		responseErrHandle(dict)
+		s.responseErrHandle(dict)
 	}
 }
 
 // err handler
-func responseErrHandle(err misc.Dict) {
+func (s *RpcServer) responseErrHandle(err misc.Dict) {
 	// parse header
 	txId := err.GetString("t")
 	list := err.GetList("e")
@@ -96,13 +141,13 @@ func responseErrHandle(err misc.Dict) {
 }
 
 // response handler
-func responseHandle(dict misc.Dict) {
+func (s *RpcServer) responseHandle(dict misc.Dict) {
 
 	// parse header
 	txId := dict.GetString("t")
 	body := dict.GetDict("r")
 	nodeId := body.GetString("nodeId")
-	handler, exist := requestMapping.Get(txId)
+	handler, exist := s.requestMapping.Get(txId)
 
 	if !exist {
 		serverLogger.Error("cannot match request", misc.Dict{"txId": txId, "nodeId": nodeId})
@@ -111,11 +156,11 @@ func responseHandle(dict misc.Dict) {
 
 	req := handler.(Request)
 	resp := WithResponse(txId, body)
-	req.Handler()(req, resp)
+	s.doResponseHandle(req, resp)
 }
 
 // query handler
-func requestHandle(resp misc.Dict) (ret Response) {
+func (s *RpcServer) requestHandle(resp misc.Dict) (ret Response) {
 
 	txId := resp.GetString("t")
 	defer func() {
@@ -141,10 +186,10 @@ func requestHandle(resp misc.Dict) (ret Response) {
 	}
 
 	req := NewBaseRequest(txId, queryType, body, nil)
-	handler, exist := reqestHandlerRouter.Get(queryType)
+	handler, exist := s.reqestHandlerRouter.Get(queryType)
 	if !exist {
 		return WithParamErr(txId, "cannot handle not match handler")
 	}
-	handlerFunc := handler.(ReqHandlerFunc)
-	return handlerFunc(req)
+	handlerFunc := handler.(RpcHandlerFunc)
+	return s.doRequestHandle(req, handlerFunc)
 }

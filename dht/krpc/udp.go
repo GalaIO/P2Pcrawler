@@ -4,6 +4,8 @@ import (
 	"github.com/GalaIO/P2Pcrawler/misc"
 	"log"
 	"net"
+	"sync"
+	"sync/atomic"
 )
 
 var udpLogger = misc.GetLogger().SetPrefix("udp")
@@ -18,14 +20,29 @@ type RecvPacket struct {
 }
 
 type UdpServer struct {
-	laddr *net.UDPAddr
-	conn  *net.UDPConn
-	recvq chan RecvPacket
+	sync.RWMutex
+	laddr  *net.UDPAddr
+	conn   *net.UDPConn
+	recvq  chan *RecvPacket
+	closed *atomic.Value
 }
 
 func (s *UdpServer) Close() error {
-	udpLogger.Trace("conn close...", misc.Dict{"laddr": s.laddr})
-	return s.conn.Close()
+	if s.closed.Load().(bool) {
+		return nil
+	}
+	defer s.Unlock()
+	s.Lock()
+	return s.close()
+}
+
+func (s *UdpServer) close() error {
+	udpLogger.Trace("conn closing...", misc.Dict{"laddr": s.laddr})
+	s.closed.Store(true)
+	if s.conn != nil {
+		return s.conn.Close()
+	}
+	return nil
 }
 
 func (s *UdpServer) SendPacket(bytes []byte, raddr *net.UDPAddr) error {
@@ -48,12 +65,12 @@ func (s *UdpServer) SendPacketToHost(bytes []byte, remoteAddr string) error {
 	return s.SendPacket(bytes, raddr)
 }
 
-func (s *UdpServer) RecvChan() chan RecvPacket {
+func (s *UdpServer) RecvChan() chan *RecvPacket {
 	return s.recvq
 }
 
 // startup a udp server, listening on target port
-func StartUp(localAddr string) *UdpServer {
+func StartUdpServer(localAddr string) *UdpServer {
 	laddr, err := net.ResolveUDPAddr("udp", localAddr)
 	if err != nil {
 		udpLogger.Panic("resolve local host err", misc.Dict{"laddr": laddr, "err": err})
@@ -66,24 +83,25 @@ func StartUp(localAddr string) *UdpServer {
 	udpLogger.Trace("listen udp...", misc.Dict{"laddr": laddr})
 
 	server := &UdpServer{
-		laddr: laddr,
-		conn:  serverConn,
-		recvq: make(chan RecvPacket, RecvChanLen),
+		laddr:  laddr,
+		conn:   serverConn,
+		recvq:  make(chan *RecvPacket, RecvChanLen),
+		closed: &atomic.Value{},
 	}
-	go recvRoutiue(server)
+	server.closed.Store(false)
+	go server.recvRoutiue()
 	return server
 }
 
-func recvRoutiue(srv *UdpServer) {
-	conn := srv.conn
-	for {
+func (s *UdpServer) recvRoutiue() {
+	for !(s.closed.Load().(bool)) {
 		buf := make([]byte, RecvPacketLen)
-		n, raddr, err := conn.ReadFromUDP(buf)
+		n, raddr, err := s.conn.ReadFromUDP(buf)
 		if err != nil {
 			udpLogger.Error("<<< receive udp err", misc.Dict{"err": err})
 			continue
 		}
 		udpLogger.Info("<<< received Bytes", misc.Dict{"raddr": raddr.String(), "length": n})
-		srv.recvq <- RecvPacket{Addr: raddr, Bytes: buf[:n]}
+		s.recvq <- &RecvPacket{Addr: raddr, Bytes: buf[:n]}
 	}
 }

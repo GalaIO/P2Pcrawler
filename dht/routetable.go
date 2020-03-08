@@ -8,9 +8,6 @@ import (
 	"sync"
 )
 
-const maxRouteTableSize int = 160
-const maxBucketLen int = 8
-
 var rtableLogger = misc.GetLogger().SetPrefix("rtable")
 
 type Bucket struct {
@@ -211,6 +208,18 @@ func (t *RouteTable) nodeCount() int {
 		size += t.nodeMap[i].Size()
 	}
 	return size
+}
+
+func (t *RouteTable) Size() int {
+	defer t.RUnlock()
+	t.RLock()
+	return t.size
+}
+
+func (t *RouteTable) Full() bool {
+	defer t.RUnlock()
+	t.RLock()
+	return t.lastBucketIndex >= t.capacity && t.nodeMap[t.lastBucketIndex].Full()
 }
 
 func solvePrefixLen(a string, b string) int {

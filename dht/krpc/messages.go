@@ -71,13 +71,11 @@ func (b *BaseResponse) String() string {
 	return string(bytes)
 }
 
-type RespHandlerFunc func(req Request, resp Response)
-
 type Request interface {
 	TxId() string
 	Type() string
 	Body() misc.Dict
-	Handler() RespHandlerFunc
+	Handler() RpcHandlerFunc
 	RawData() misc.Dict
 	fmt.Stringer
 }
@@ -86,10 +84,10 @@ type BaseRequest struct {
 	txId    string
 	qType   string
 	body    misc.Dict
-	handler RespHandlerFunc
+	handler RpcHandlerFunc
 }
 
-func NewBaseRequest(txId, qtype string, body misc.Dict, handlerFunc RespHandlerFunc) Request {
+func NewBaseRequest(txId, qtype string, body misc.Dict, handlerFunc RpcHandlerFunc) Request {
 	return &BaseRequest{
 		txId:    txId,
 		qType:   qtype,
@@ -110,7 +108,7 @@ func (b *BaseRequest) Body() misc.Dict {
 	return b.body
 }
 
-func (b *BaseRequest) Handler() RespHandlerFunc {
+func (b *BaseRequest) Handler() RpcHandlerFunc {
 	return b.handler
 }
 

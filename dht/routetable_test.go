@@ -7,7 +7,8 @@ import (
 )
 
 func TestAddNode(t *testing.T) {
-	rtable := NewRouteTable(NewNodeInfoFromHost(LocalNodeId, "127.0.0.1:9090"), 2, maxRouteTableSize)
+	lid := generateNodeId("local.test")
+	rtable := NewRouteTable(NewNodeInfoFromHost(lid, "127.0.0.1:9090"), 2, 160)
 
 	hnode := rtable.hnode
 	id := generateNodeId("test1")
@@ -23,7 +24,8 @@ func TestAddNode(t *testing.T) {
 }
 
 func TestSplitNode(t *testing.T) {
-	hnode := NewNodeInfoFromHost(LocalNodeId, "127.0.0.1:9090")
+	lid := generateNodeId("local.test")
+	hnode := NewNodeInfoFromHost(lid, "127.0.0.1:9090")
 	rtable := NewRouteTable(hnode, 2, 30)
 
 	for i := 9000; i < 65536; i++ {
