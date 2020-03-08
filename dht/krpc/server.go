@@ -1,6 +1,7 @@
 package krpc
 
 import (
+	"encoding/hex"
 	"github.com/GalaIO/P2Pcrawler/misc"
 	"net"
 )
@@ -31,7 +32,7 @@ func NewRpcServer(laddr string) *RpcServer {
 func (s *RpcServer) Listen() {
 	for {
 		packet := <-s.udpConn.RecvChan()
-		serverLogger.Info("<<<  Bytes received", misc.Dict{"from": packet.Addr.String(), "len": len(packet.Bytes)})
+		serverLogger.Info("<<<rpc received", misc.Dict{"from": packet.Addr.String(), "len": len(packet.Bytes)})
 
 		go s.recvPacketHandle(packet)
 	}
@@ -94,7 +95,7 @@ func (s *RpcServer) Query(raddr *net.UDPAddr, req Request) error {
 		serverLogger.Error("send query packet err", misc.Dict{"to": raddr.String(), "query": req.String(), "err": err})
 		return err
 	}
-	serverLogger.Info(">>>  Bytes sended", misc.Dict{"to": raddr.String(), "len": len(raw)})
+	serverLogger.Info(">>>rpc sended", misc.Dict{"to": raddr.String(), "len": len(raw)})
 	return nil
 }
 
@@ -102,7 +103,7 @@ func (s *RpcServer) recvPacketHandle(packet *RecvPacket) {
 
 	defer func() {
 		if err := recover(); err != nil {
-			serverLogger.Error("recv packet handle panic", misc.Dict{"from": packet.Addr.String(), "err": err})
+			serverLogger.Error("recv packet handle panic", misc.Dict{"from": packet.Addr.String(), "err": err, "bytes": hex.EncodeToString(packet.Bytes)})
 		}
 	}()
 
@@ -146,7 +147,8 @@ func (s *RpcServer) responseHandle(dict misc.Dict) {
 	// parse header
 	txId := dict.GetString("t")
 	body := dict.GetDict("r")
-	nodeId := body.GetString("nodeId")
+	nodeId := body.GetString("id")
+	serverLogger.Info("response handle", misc.Dict{"txId": txId, "nodeId": nodeId})
 	handler, exist := s.requestMapping.Get(txId)
 
 	if !exist {
@@ -163,6 +165,8 @@ func (s *RpcServer) responseHandle(dict misc.Dict) {
 func (s *RpcServer) requestHandle(resp misc.Dict) (ret Response) {
 
 	txId := resp.GetString("t")
+	queryType := resp.GetString("q")
+	serverLogger.Info("response handle", misc.Dict{"txId": txId, "queryType": queryType})
 	defer func() {
 		if err := recover(); err != nil {
 			serverLogger.Error("request handle panic", misc.Dict{"err": err})
@@ -175,7 +179,6 @@ func (s *RpcServer) requestHandle(resp misc.Dict) (ret Response) {
 	}()
 
 	// parse header
-	queryType := resp.GetString("q")
 	if !supportQueryType.ContainsString(queryType) {
 		return WithParamErr(txId, "donnot support <"+queryType+"> query type")
 	}

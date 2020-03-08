@@ -114,8 +114,10 @@ type consoleLogger struct {
 }
 
 func (c *consoleLogger) SetPrefix(prefix string) Logger {
-	c.prefix = prefix
-	return c
+	return &consoleLogger{
+		prefix: prefix,
+		level:  c.level,
+	}
 }
 
 func (c *consoleLogger) Debug(msg string, ctx Dict) {
