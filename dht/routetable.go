@@ -161,13 +161,13 @@ func (t *RouteTable) addNode(node *NodeInfo, preLen int) error {
 
 	if bucket.Full() {
 		// full bucket just ignore
-		rtableLogger.Info("the route table has full", misc.Dict{"tableSize": t.size, "preLen": preLen})
+		rtableLogger.Info("the bucket has full", misc.Dict{"tableSize": t.size, "preLen": preLen})
 		return errors.New("the bucket is full")
 	}
 
 	if !bucket.Exist(node) && !bucket.Add(node) {
 		// full bucket just ignore
-		rtableLogger.Info("the route table has full", misc.Dict{"tableSize": t.size, "preLen": preLen})
+		rtableLogger.Info("the bucket has full", misc.Dict{"tableSize": t.size, "preLen": preLen})
 		return errors.New("the bucket is full")
 	}
 	t.size++
