@@ -48,6 +48,16 @@ func NewNodeInfoFromHost(id, addr string) *NodeInfo {
 	return &NodeInfo{Id: id, Addr: resolveHost(addr)}
 }
 
+func (n *NodeInfo) Equals(node *NodeInfo) bool {
+	if node == nil {
+		return false
+	}
+	if strings.EqualFold(n.Id, node.Id) && strings.EqualFold(n.Addr.String(), node.Addr.String()) {
+		return true
+	}
+	return false
+}
+
 func resolveHost(addr string) *net.UDPAddr {
 	raddr, err := net.ResolveUDPAddr("udp4", addr)
 	if err != nil {

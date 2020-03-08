@@ -8,7 +8,7 @@ import (
 var serverLogger = misc.GetLogger().SetPrefix("server")
 var supportQueryType = misc.List{"ping", "find_node", "get_peers", "announce_peer"}
 
-var serverConn = StartUp(":21000")
+var serverConn *UdpServer
 var reqestHandlerRouter = misc.NewSyncMap(4)
 var requestMapping = misc.NewSyncMap(100)
 
@@ -28,6 +28,7 @@ func RegisteHandler(qType string, handler ReqHandlerFunc) {
 
 // the server main routinue, will listen and handle msg
 func Server() {
+	serverConn = StartUp(":21000")
 	for {
 		packet := <-serverConn.RecvChan()
 		serverLogger.Info("<<<  Bytes received", misc.Dict{"from": packet.Addr.String(), "len": len(packet.Bytes)})
