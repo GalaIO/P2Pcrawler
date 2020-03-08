@@ -53,20 +53,20 @@ func (s *RpcServer) UseRespHandlerMiddleware(handlerChain ...RpcHandlerFunc) {
 	s.respHandlerChain = append(s.respHandlerChain, handlerChain...)
 }
 
-func (s *RpcServer) doRequestHandle(req Request, reqHandler RpcHandlerFunc) Response {
+func (s *RpcServer) doRequestHandle(req Request, reqHandler RpcHandlerFunc, addr net.Addr) Response {
 	executeChain := make([]RpcHandlerFunc, 0, len(s.reqHandlerChain))
 	executeChain = append(executeChain, s.reqHandlerChain...)
 	executeChain = append(executeChain, reqHandler)
-	ctx := NewReqContext(executeChain, req, nil)
+	ctx := NewReqContext(executeChain, req, nil, addr)
 	ctx.Next()
 	return ctx.resp
 }
 
-func (s *RpcServer) doResponseHandle(req Request, resp Response) {
+func (s *RpcServer) doResponseHandle(req Request, resp Response, addr net.Addr) {
 	executeChain := make([]RpcHandlerFunc, 0, len(s.reqHandlerChain))
 	executeChain = append(executeChain, s.respHandlerChain...)
 	executeChain = append(executeChain, req.Handler())
-	ctx := NewReqContext(executeChain, req, resp)
+	ctx := NewReqContext(executeChain, req, resp, addr)
 	ctx.Next()
 }
 
@@ -119,7 +119,7 @@ func (s *RpcServer) recvPacketHandle(packet *RecvPacket) {
 	}
 	switch dict.GetString("y") {
 	case "q":
-		ret := s.requestHandle(dict)
+		ret := s.requestHandle(packet.Addr, dict)
 		bytes, err := misc.EncodeDict(ret.RawData())
 		if err != nil {
 			serverLogger.Error("encode response err", misc.Dict{"from": packet.Addr.String(), "dict": ret.String()})
@@ -127,14 +127,14 @@ func (s *RpcServer) recvPacketHandle(packet *RecvPacket) {
 		err = s.udpConn.SendPacket([]byte(bytes), packet.Addr)
 		serverLogger.Info(">>>  Bytes sended", misc.Dict{"to": packet.Addr.String(), "len": len(bytes)})
 	case "r":
-		s.responseHandle(dict)
+		s.responseHandle(packet.Addr, dict)
 	case "e":
-		s.responseErrHandle(dict)
+		s.responseErrHandle(packet.Addr, dict)
 	}
 }
 
 // err handler
-func (s *RpcServer) responseErrHandle(err misc.Dict) {
+func (s *RpcServer) responseErrHandle(addr *net.UDPAddr, err misc.Dict) {
 	// parse header
 	txId := err.GetString("t")
 	list := err.GetList("e")
@@ -142,7 +142,7 @@ func (s *RpcServer) responseErrHandle(err misc.Dict) {
 }
 
 // response handler
-func (s *RpcServer) responseHandle(dict misc.Dict) {
+func (s *RpcServer) responseHandle(addr *net.UDPAddr, dict misc.Dict) {
 
 	// parse header
 	txId := dict.GetString("t")
@@ -158,11 +158,11 @@ func (s *RpcServer) responseHandle(dict misc.Dict) {
 
 	req := handler.(Request)
 	resp := WithResponse(txId, body)
-	s.doResponseHandle(req, resp)
+	s.doResponseHandle(req, resp, addr)
 }
 
 // query handler
-func (s *RpcServer) requestHandle(resp misc.Dict) (ret Response) {
+func (s *RpcServer) requestHandle(addr *net.UDPAddr, resp misc.Dict) (ret Response) {
 
 	txId := resp.GetString("t")
 	queryType := resp.GetString("q")
@@ -194,5 +194,5 @@ func (s *RpcServer) requestHandle(resp misc.Dict) (ret Response) {
 		return WithParamErr(txId, "cannot handle not match handler")
 	}
 	handlerFunc := handler.(RpcHandlerFunc)
-	return s.doRequestHandle(req, handlerFunc)
+	return s.doRequestHandle(req, handlerFunc, addr)
 }

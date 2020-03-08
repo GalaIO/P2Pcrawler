@@ -26,7 +26,7 @@ func TestReqHandlerMiddleware(t *testing.T) {
 	resp := rpcServer.doRequestHandle(request, func(ctx *RpcContext) {
 		execute += "main"
 		ctx.WriteAs(WithResponse("test", misc.Dict{}))
-	})
+	}, nil)
 
 	assert.Equal(t, "abmainba", execute)
 	assert.Equal(t, WithResponse("test", misc.Dict{}), resp)
@@ -43,7 +43,7 @@ func TestReqHandlerMiddlewareWithNone(t *testing.T) {
 	resp := rpcServer.doRequestHandle(request, func(ctx *RpcContext) {
 		execute += "main"
 		ctx.WriteAs(WithResponse("test", misc.Dict{}))
-	})
+	}, nil)
 
 	assert.Equal(t, "main", execute)
 	assert.Equal(t, WithResponse("test", misc.Dict{}), resp)
@@ -70,7 +70,7 @@ func TestRespHandlerMiddleware(t *testing.T) {
 		execute += "main"
 		resp = ctx.Response()
 	})
-	rpcServer.doResponseHandle(request, WithResponse("aa", misc.Dict{}))
+	rpcServer.doResponseHandle(request, WithResponse("aa", misc.Dict{}), nil)
 
 	assert.Equal(t, "abmainba", execute)
 	assert.Equal(t, WithResponse("aa", misc.Dict{}), resp)
@@ -88,7 +88,7 @@ func TestRespHandlerMiddlewareWithNone(t *testing.T) {
 		execute += "main"
 		resp = ctx.Response()
 	})
-	rpcServer.doResponseHandle(request, WithResponse("aa", misc.Dict{}))
+	rpcServer.doResponseHandle(request, WithResponse("aa", misc.Dict{}), nil)
 
 	assert.Equal(t, "main", execute)
 	assert.Equal(t, WithResponse("aa", misc.Dict{}), resp)

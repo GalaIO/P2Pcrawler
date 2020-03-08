@@ -1,14 +1,23 @@
 package krpc
 
+import "net"
+
 type RpcContext struct {
 	index int
 	chain []RpcHandlerFunc
+	addr  net.Addr
 	req   Request
 	resp  Response
 }
 
-func NewReqContext(chain []RpcHandlerFunc, req Request, resp Response) *RpcContext {
-	return &RpcContext{chain: chain, index: -1, req: req, resp: resp}
+func NewReqContext(chain []RpcHandlerFunc, req Request, resp Response, addr net.Addr) *RpcContext {
+	return &RpcContext{
+		chain: chain,
+		index: -1,
+		req:   req,
+		resp:  resp,
+		addr:  addr,
+	}
 }
 
 func (c *RpcContext) Next() {
@@ -28,4 +37,8 @@ func (c *RpcContext) Response() Response {
 
 func (c *RpcContext) WriteAs(resp Response) {
 	c.resp = resp
+}
+
+func (c *RpcContext) RemoteAddr() net.Addr {
+	return c.addr
 }

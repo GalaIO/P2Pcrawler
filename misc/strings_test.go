@@ -1,6 +1,7 @@
 package misc
 
 import (
+	"encoding/hex"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -29,4 +30,9 @@ func Test2string(t *testing.T) {
 	assert.Equal(t, `{"name":"xiaoguo"}`, ToString(Dict{"name": "xiaoguo"}))
 	assert.Equal(t, "stringStruc, name=xiaoguo", ToString(&stringStruc{name: "xiaoguo"}))
 	assert.Equal(t, "error, name=xiaoguo", ToString(&errorStruc{name: "xiaoguo"}))
+}
+
+func TestStr2Hex(t *testing.T) {
+	bytes, _ := hex.DecodeString("abcd")
+	assert.Equal(t, "abcd", Str2Hex(string(bytes)))
 }

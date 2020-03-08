@@ -97,5 +97,5 @@ func TestHandleQueryResp(t *testing.T) {
 	req.Handler()(metgetReqAndResp(req, WithAnnouncePeerResponse(req.TxId(), "mnopqrstuvwxyz123456")))
 }
 func metgetReqAndResp(req krpc.Request, resp krpc.Response) *krpc.RpcContext {
-	return krpc.NewReqContext(nil, req, resp)
+	return krpc.NewReqContext(nil, req, resp, nil)
 }

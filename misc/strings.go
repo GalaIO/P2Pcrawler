@@ -1,6 +1,7 @@
 package misc
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 )
@@ -20,4 +21,8 @@ func ToString(v interface{}) string {
 		return err.Error()
 	}
 	return string(bytes)
+}
+
+func Str2Hex(str string) string {
+	return hex.EncodeToString([]byte(str))
 }

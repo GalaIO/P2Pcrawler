@@ -26,9 +26,9 @@ func TestAddNode(t *testing.T) {
 func TestSplitNode(t *testing.T) {
 	lid := generateNodeId("local.test")
 	hnode := NewNodeInfoFromHost(lid, "127.0.0.1:9090")
-	rtable := NewRouteTable(hnode, 2, 30)
+	rtable := NewRouteTable(hnode, 2, 10)
 
-	for i := 9000; i < 65536; i++ {
+	for i := 9000; i < 10000; i++ {
 		host := fmt.Sprintf("127.0.0.1:%d", i)
 		rtable.AddNode(NewNodeInfoFromHost(generateNodeId(host), host))
 		//assert.Equal(t, nil, rtable.AddNode(NewNodeInfoFromHost(generateNodeId(name), host)))

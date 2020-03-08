@@ -1,7 +1,6 @@
 package dht
 
 import (
-	"encoding/hex"
 	"github.com/GalaIO/P2Pcrawler/dht/krpc"
 	"github.com/GalaIO/P2Pcrawler/misc"
 	"net"
@@ -26,39 +25,13 @@ func Run() {
 	//rpcServer.UseRespHandlerMiddleware(renderRespMiddleware)
 
 	dhtLogger.Info("register request handler...", nil)
-	registerRequestHandler()
+	rpcServer.RegisteHandler("ping", pingHandler)
+	rpcServer.RegisteHandler("find_node", findNodeHandler)
+	rpcServer.RegisteHandler("get_peers", getPeersHandler)
+	rpcServer.RegisteHandler("announce_peer", announcePeerHandler)
 
 	dhtLogger.Info("enter listen loop...", nil)
 	rpcServer.Listen()
-}
-
-func registerRequestHandler() {
-	rpcServer.RegisteHandler("ping", func(ctx *krpc.RpcContext) {
-		req := ctx.Request()
-		dhtLogger.Info("get ping request", misc.Dict{"txId": req.TxId()})
-		ctx.WriteAs(WithPingResponse(req.TxId(), localNodeId))
-	})
-	rpcServer.RegisteHandler("find_node", func(ctx *krpc.RpcContext) {
-		req := ctx.Request()
-		dhtLogger.Info("get find_node request", misc.Dict{"txId": req.TxId()})
-		ctx.WriteAs(WithFindNodeResponse(req.TxId(), localNodeId, nil))
-	})
-	rpcServer.RegisteHandler("get_peers", func(ctx *krpc.RpcContext) {
-		req := ctx.Request()
-		body := req.Body()
-		infoHash := body.GetString("info_hash")
-		hash := hex.EncodeToString([]byte(infoHash))
-		dhtLogger.Info("get get_peers request", misc.Dict{"txId": req.TxId(), "infoHash": hash})
-		ctx.WriteAs(WithGetPeersNodesResponse(req.TxId(), localNodeId, req.TxId(), nil))
-	})
-	rpcServer.RegisteHandler("announce_peer", func(ctx *krpc.RpcContext) {
-		req := ctx.Request()
-		body := req.Body()
-		infoHash := body.GetString("info_hash")
-		hash := hex.EncodeToString([]byte(infoHash))
-		dhtLogger.Info("get announce_peer request", misc.Dict{"txId": req.TxId(), "infoHash": hash, "port": body.GetInteger("port")})
-		ctx.WriteAs(WithAnnouncePeerResponse(req.TxId(), localNodeId))
-	})
 }
 
 // bootstrap find myself
