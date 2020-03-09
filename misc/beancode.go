@@ -246,6 +246,26 @@ func DecodeDict(src string) (Dict, error) {
 	return result, nil
 }
 
+func DecodeDictNoLimit(src string) (Dict, int, error) {
+
+	tLen := len(src)
+	if tLen < 2 {
+		return nil, -1, WrongDecodeParamErr
+	}
+
+	if src[0] != 'd' {
+		return nil, -1, WrongDecodeParamErr
+	}
+
+	result, next, err := innerDecodeDict(src, 0)
+
+	if err != nil {
+		return nil, -1, err
+	}
+
+	return result, next, nil
+}
+
 func innerDecodeDict(src string, start int) (Dict, int, error) {
 
 	if src[start] != 'd' {

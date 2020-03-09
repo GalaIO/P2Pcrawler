@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"unsafe"
 )
 
 func ToString(v interface{}) string {
@@ -24,5 +25,15 @@ func ToString(v interface{}) string {
 }
 
 func Str2Hex(str string) string {
-	return hex.EncodeToString([]byte(str))
+	return hex.EncodeToString(Str2Bytes(str))
+}
+
+func Str2Bytes(s string) []byte {
+	x := (*[2]uintptr)(unsafe.Pointer(&s))
+	h := [3]uintptr{x[0], x[1], x[1]}
+	return *(*[]byte)(unsafe.Pointer(&h))
+}
+
+func Bytes2Str(b []byte) string {
+	return *(*string)(unsafe.Pointer(&b))
 }

@@ -3,10 +3,14 @@ package peerwire
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
+	"errors"
+	"fmt"
 	"github.com/GalaIO/P2Pcrawler/misc"
 	"io/ioutil"
 	"net"
 	"strings"
+	"time"
 )
 
 // refer http://www.bittorrent.org/beps/bep_0009.html
@@ -25,17 +29,23 @@ type ExtendedFetchMetaMsg interface {
 	MsgType() ExFecthMetaType
 	PieceNum() int
 	Data() []byte
+	TotalSize() int
 }
 
 type BaseExFetchMetaMsg struct {
-	msgId    int
-	msgType  ExFecthMetaType
-	pieceNum int
-	data     []byte
+	msgId     int
+	msgType   ExFecthMetaType
+	pieceNum  int
+	data      []byte
+	totalSize int
 }
 
-func NewBaseExFetchMetaMsg(msgId int, msgType ExFecthMetaType, pieceNum int, data []byte) *BaseExFetchMetaMsg {
-	return &BaseExFetchMetaMsg{msgId: msgId, msgType: msgType, pieceNum: pieceNum, data: data}
+func (b *BaseExFetchMetaMsg) TotalSize() int {
+	return b.totalSize
+}
+
+func NewBaseExFetchMetaMsg(msgId int, msgType ExFecthMetaType, pieceNum, totalSize int, data []byte) *BaseExFetchMetaMsg {
+	return &BaseExFetchMetaMsg{msgId: msgId, msgType: msgType, pieceNum: pieceNum, totalSize: totalSize, data: data}
 }
 
 func (b *BaseExFetchMetaMsg) ExMessageId() int {
@@ -57,20 +67,21 @@ func (b *BaseExFetchMetaMsg) Data() []byte {
 func (b *BaseExFetchMetaMsg) Bytes() []byte {
 	dict := misc.Dict{"msg_type": int(b.msgType), "piece": b.pieceNum}
 	if len(b.data) > 0 {
-		dict["total_size"] = len(b.data)
+		dict["total_size"] = b.totalSize
 	}
 	dst, err := misc.EncodeDict(dict)
 	if err != nil {
 		peerWireLogger.Panic("encode extended fetchmetadata err", misc.Dict{"msgtype": b.msgType, "err": err})
 	}
 
-	preLen := 1 + len(dst) + len(b.data)
+	preLen := 2 + len(dst) + len(b.data)
 	preLenBytes := make([]byte, PrefixLen)
 	binary.BigEndian.PutUint32(preLenBytes, uint32(preLen))
 
 	var buf bytes.Buffer
 	buf.Grow(preLen + PrefixLen)
 	buf.Write(preLenBytes)
+	buf.WriteByte(byte(ExtendedPeerMsg)) // peer msg type, extended msg
 	buf.WriteByte(byte(b.msgId))
 	buf.Write([]byte(dst))
 	if len(b.data) > 0 {
@@ -80,38 +91,31 @@ func (b *BaseExFetchMetaMsg) Bytes() []byte {
 }
 
 func parseExtendedFetchMetaMsg(data []byte) ExtendedFetchMetaMsg {
-	preLen := parsePrefixLen(data)
-	if preLen+PrefixLen != len(data) {
-		peerWireLogger.Panic("extended fetchmetadata wrong format", misc.Dict{"preLen": preLen, "totalLen": len(data)})
+	fmt.Println("parseExtendedFetchMetaMsg", hex.EncodeToString(data))
+	msgType := PeerMsgType(data[0])
+	if ExtendedPeerMsg != msgType {
+		peerWireLogger.Panic("extended fetchmetadata not extended msg", misc.Dict{"totalLen": len(data)})
 	}
-	msgId := int(data[PrefixLen])
-	dataIndex := bytes.Index(data, []byte("ee")) + 2
-	var dict misc.Dict
-	var err error
-	var binData []byte
-	if dataIndex >= len(data) {
-		dict, err = misc.DecodeDict(string(data[PrefixLen+1:]))
-	} else {
-		dict, err = misc.DecodeDict(string(data[PrefixLen+1 : dataIndex]))
-		binData = data[dataIndex:]
-		// check size
-		if len(binData) != dict.GetInteger("total_size") {
-			peerWireLogger.Panic("decode extended fetchmetadata err, not match total_size", misc.Dict{"err": err})
-		}
-	}
+	msgId := int(data[1])
+	dict, next, err := misc.DecodeDictNoLimit(misc.Bytes2Str(data[2:]))
+	next += 2
 	if err != nil {
 		peerWireLogger.Panic("decode extended fetchmetadata err", misc.Dict{"err": err})
 	}
+	if next >= len(data) {
+		return NewBaseExFetchMetaMsg(msgId, ExFecthMetaType(dict.GetInteger("msg_type")), dict.GetInteger("piece"), 0, nil)
+	}
 
-	return NewBaseExFetchMetaMsg(msgId, ExFecthMetaType(dict.GetInteger("msg_type")), dict.GetInteger("piece"), binData)
+	totalSize := dict.GetInteger("total_size")
+	return NewBaseExFetchMetaMsg(msgId, ExFecthMetaType(dict.GetInteger("msg_type")), dict.GetInteger("piece"), totalSize, data[next:])
 }
 
-func withExtendedFetchMetaMsg(exMsgId int, mType ExFecthMetaType, pieceNum int, data ...[]byte) []byte {
+func withExtendedFetchMetaMsg(exMsgId int, mType ExFecthMetaType, pieceNum, totalSize int, data ...[]byte) []byte {
 	var binData []byte
 	if len(data) > 0 {
 		binData = data[0]
 	}
-	fetchMetaMsg := NewBaseExFetchMetaMsg(exMsgId, mType, pieceNum, binData)
+	fetchMetaMsg := NewBaseExFetchMetaMsg(exMsgId, mType, pieceNum, totalSize, binData)
 	return fetchMetaMsg.Bytes()
 }
 
@@ -122,10 +126,11 @@ func FetchMetaData(laddr string, infoHash []byte) (ret []byte, retErr error) {
 	defer func() {
 		if err := recover(); err != nil {
 			ret = nil
-			retErr = err.(error)
+			fetchMetaLogger.Error("FetchMetaData err", misc.Dict{"laddr": laddr, "err": err})
+			retErr = errors.New("FetchMetaData err")
 		}
 	}()
-	conn, err := net.Dial("tcp", laddr)
+	conn, err := net.DialTimeout("tcp", laddr, 3*time.Second)
 	if err != nil {
 		fetchMetaLogger.Panic("connect peer err", misc.Dict{"laddr": laddr, "err": err})
 	}
@@ -175,7 +180,7 @@ func FetchMetaData(laddr string, infoHash []byte) (ret []byte, retErr error) {
 	fileBytes.Grow(metaSize)
 	for i := 0; i < pieceCount; i++ {
 		// request piece
-		conn.Write(withExtendedFetchMetaMsg(msgId, ExRequest, i))
+		conn.Write(withExtendedFetchMetaMsg(msgId, ExRequest, i, 0))
 
 		// get piece
 		bytes, err := ioutil.ReadAll(conn)

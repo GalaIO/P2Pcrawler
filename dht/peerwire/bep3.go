@@ -3,6 +3,8 @@ package peerwire
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
+	"fmt"
 	"github.com/GalaIO/P2Pcrawler/misc"
 )
 
@@ -18,6 +20,13 @@ var reservedBytes = supportExterned(defaultReservedBytes)
 var localPeerId = generatePeerId("galaio.peerId")
 
 var peerWireLogger = misc.GetLogger().SetPrefix("peerwire")
+
+type PeerMsgType int
+
+const (
+	ChokePeerMsg    PeerMsgType = iota
+	ExtendedPeerMsg             = 20
+)
 
 type HandShakeMsg interface {
 	Protocol() string
@@ -65,6 +74,7 @@ func (b *BaseHandShakeMsg) Bytes() []byte {
 }
 
 func parseHandShakeMsg(data []byte) HandShakeMsg {
+	fmt.Println("parseHandShakeMsg", hex.EncodeToString(data))
 	if handShakeLen != len(data) {
 		peerWireLogger.Panic("parseHandShakeMsg wrong data len", misc.Dict{"len": len(data)})
 	}
