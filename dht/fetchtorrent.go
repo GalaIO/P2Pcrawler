@@ -6,6 +6,7 @@ import (
 	"github.com/GalaIO/P2Pcrawler/dht/peerwire"
 	"github.com/GalaIO/P2Pcrawler/misc"
 	"os"
+	"strconv"
 )
 
 var recvInfoHash = make(chan *krpc.RpcContext, 1000)
@@ -27,17 +28,25 @@ func fetchHandler(ctx *krpc.RpcContext) {
 	req := ctx.Request()
 	body := req.Body()
 	infoHash := body.GetString("info_hash")
-	//impliedPort := body.GetInteger("implied_port")
-	//laddr := ctx.RemoteAddr().String()
-	//if impliedPort > 0 {
-	//	laddr = ctx.RemoteAddr().String()
-	//}
+	laddr := parseFetchAddr(ctx)
 	hash := hex.EncodeToString([]byte(infoHash))
-	result, err := peerwire.FetchMetaData(ctx.RemoteAddr().String(), peerwire.LocalPeerId, misc.Str2Bytes(infoHash))
+	result, err := peerwire.FetchMetaData(laddr, peerwire.LocalPeerId, misc.Str2Bytes(infoHash))
 	if err != nil {
 		return
 	}
 	flushTorrentFile(hash, result)
+}
+
+func parseFetchAddr(ctx *krpc.RpcContext) string {
+	req := ctx.Request()
+	body := req.Body()
+	port := body.GetInteger("port")
+	impliedPort := body.GetInteger("implied_port")
+	laddr := ctx.RemoteAddr().IP.String() + ":" + strconv.Itoa(port)
+	if impliedPort > 0 {
+		laddr = ctx.RemoteAddr().String()
+	}
+	return laddr
 }
 
 func flushTorrentFile(fileName string, data []byte) {

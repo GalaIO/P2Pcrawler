@@ -198,7 +198,7 @@ func FetchMetaData(laddr string, peerId, infoHash []byte) (ret []byte, retErr er
 
 		prefixLenMsg := parsePrefixLenMsg(bytes)
 		if ExtendedPeerMsg != prefixLenMsg.PeerMsgType() {
-			fetchMetaLogger.Info("fetch bep3 msg", misc.Dict{"laddr": laddr, "ExMsgType": int(prefixLenMsg.PeerMsgType())})
+			fetchMetaLogger.Info("fetch bep3 msg", misc.Dict{"laddr": laddr, "peerMsgType": int(prefixLenMsg.PeerMsgType())})
 			continue
 		}
 		fetchMetaResp := parseExtendedFetchMetaMsg(bytes)

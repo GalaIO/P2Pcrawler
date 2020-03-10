@@ -55,7 +55,7 @@ func parseExtendedHandShake(data []byte) ExtendedHandShakeMsg {
 	msgId := int(data[1])
 
 	if ExtendedPeerMsg != msgType || handShakeMsgId != msgId {
-		peerWireLogger.Panic("extended handshake resp err", misc.Dict{"ExMsgType": msgType, "MsgId": msgId})
+		peerWireLogger.Panic("extended handshake resp err", misc.Dict{"msgType": msgType, "MsgId": msgId})
 	}
 	dict, err := misc.DecodeDict(string(data[2:]))
 	if err != nil {

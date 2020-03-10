@@ -5,12 +5,12 @@ import "net"
 type RpcContext struct {
 	index int
 	chain []RpcHandlerFunc
-	addr  net.Addr
+	addr  *net.UDPAddr
 	req   Request
 	resp  Response
 }
 
-func NewReqContext(chain []RpcHandlerFunc, req Request, resp Response, addr net.Addr) *RpcContext {
+func NewReqContext(chain []RpcHandlerFunc, req Request, resp Response, addr *net.UDPAddr) *RpcContext {
 	return &RpcContext{
 		chain: chain,
 		index: -1,
@@ -39,6 +39,6 @@ func (c *RpcContext) WriteAs(resp Response) {
 	c.resp = resp
 }
 
-func (c *RpcContext) RemoteAddr() net.Addr {
+func (c *RpcContext) RemoteAddr() *net.UDPAddr {
 	return c.addr
 }

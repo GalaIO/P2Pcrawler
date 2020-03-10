@@ -53,7 +53,7 @@ func (s *RpcServer) UseRespHandlerMiddleware(handlerChain ...RpcHandlerFunc) {
 	s.respHandlerChain = append(s.respHandlerChain, handlerChain...)
 }
 
-func (s *RpcServer) doRequestHandle(req Request, reqHandler RpcHandlerFunc, addr net.Addr) Response {
+func (s *RpcServer) doRequestHandle(req Request, reqHandler RpcHandlerFunc, addr *net.UDPAddr) Response {
 	executeChain := make([]RpcHandlerFunc, 0, len(s.reqHandlerChain))
 	executeChain = append(executeChain, s.reqHandlerChain...)
 	executeChain = append(executeChain, reqHandler)
@@ -62,7 +62,7 @@ func (s *RpcServer) doRequestHandle(req Request, reqHandler RpcHandlerFunc, addr
 	return ctx.resp
 }
 
-func (s *RpcServer) doResponseHandle(req Request, resp Response, addr net.Addr) {
+func (s *RpcServer) doResponseHandle(req Request, resp Response, addr *net.UDPAddr) {
 	executeChain := make([]RpcHandlerFunc, 0, len(s.reqHandlerChain))
 	executeChain = append(executeChain, s.respHandlerChain...)
 	executeChain = append(executeChain, req.Handler())
@@ -108,9 +108,9 @@ func (s *RpcServer) recvPacketHandle(packet *RecvPacket) {
 	}()
 
 	// parse packet
-	dict, err := misc.DecodeDict(string(packet.Bytes))
+	dict, _, err := misc.DecodeDictNoLimit(string(packet.Bytes))
 	if err != nil {
-		serverLogger.Error("decode bencode err", misc.Dict{"from": packet.Addr.String(), "err": err})
+		serverLogger.Error("decode bencode err", misc.Dict{"from": packet.Addr.String(), "err": err, "data": hex.EncodeToString(packet.Bytes)})
 		return
 	}
 	if exist := dict.Exist("y"); !exist {
