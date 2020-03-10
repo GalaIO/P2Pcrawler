@@ -9,12 +9,17 @@ import (
 	"strconv"
 )
 
-var recvInfoHash = make(chan *krpc.RpcContext, 1000)
+var recvInfoHash = make(chan *krpc.RpcContext, 300000)
 
 func fetchTorrent() {
-	for {
-		ctx := <-recvInfoHash
-		fetchHandler(ctx)
+	// 开启多个线程消费
+	for i := 0; i < 10; i++ {
+		go func() {
+			for {
+				ctx := <-recvInfoHash
+				fetchHandler(ctx)
+			}
+		}()
 	}
 }
 

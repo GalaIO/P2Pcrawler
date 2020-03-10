@@ -30,11 +30,24 @@ func NewRpcServer(laddr string) *RpcServer {
 }
 
 func (s *RpcServer) Listen() {
+
+	// 开启多个线程消费
+	for i := 0; i < 100; i++ {
+		go func() {
+			for {
+				packet := <-s.udpConn.RecvChan()
+				serverLogger.Info("<<<rpc received", misc.Dict{"from": packet.Addr.String(), "len": len(packet.Bytes)})
+
+				s.recvPacketHandle(packet)
+			}
+		}()
+	}
+
 	for {
 		packet := <-s.udpConn.RecvChan()
 		serverLogger.Info("<<<rpc received", misc.Dict{"from": packet.Addr.String(), "len": len(packet.Bytes)})
 
-		go s.recvPacketHandle(packet)
+		s.recvPacketHandle(packet)
 	}
 }
 

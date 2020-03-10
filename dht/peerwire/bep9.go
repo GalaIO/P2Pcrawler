@@ -219,10 +219,9 @@ func FetchMetaData(laddr string, peerId, infoHash []byte) (ret []byte, retErr er
 	for i := 0; i < count; i++ {
 		result = append(result, fileBytes[i]...)
 	}
-	fetchMetaLogger.Info("fetch data", misc.Dict{"result": hex.EncodeToString(result)})
 	// checksum
 	if !bytes.Equal(infoHash, GenerateInfoHash(result)) {
-		fetchMetaLogger.Panic("chesum metadata not match", misc.Dict{"laddr": laddr})
+		fetchMetaLogger.Panic("chesum metadata not match", misc.Dict{"laddr": laddr, "result": hex.EncodeToString(result)})
 	}
 	fetchMetaLogger.Error("chesum metadata match", misc.Dict{"laddr": laddr, "infohash": hex.EncodeToString(infoHash)})
 	return result, nil
