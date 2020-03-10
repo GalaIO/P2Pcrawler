@@ -12,10 +12,9 @@ import (
 )
 
 func TestFetchMeatFile(t *testing.T) {
-	//laddr := "14.131.93.231:12951"
-	laddr := "121.177.133.63:40282"
-	infoHash, _ := hex.DecodeString("9be16925eaa1518a8fd02a9ba32935312468507a")
-	metaData, err := peerwire.FetchMetaData(laddr, infoHash)
+	laddr := "14.131.93.231:12951"
+	infoHash, _ := hex.DecodeString("9bd56482d6fd6a436f5051d3b9560cdd942a5962")
+	metaData, err := peerwire.FetchMetaData(laddr, peerwire.GeneratePeerId("test1"), infoHash)
 	assert.Equal(t, nil, err)
 	t.Log(string(metaData))
 }
@@ -24,7 +23,7 @@ func TestParseAddrAndFetch(t *testing.T) {
 	addrs, infos := parseAddr()
 	for i, laddr := range addrs {
 		infoHash, _ := hex.DecodeString(infos[i])
-		metaData, err := peerwire.FetchMetaData(laddr, infoHash)
+		metaData, err := peerwire.FetchMetaData(laddr, peerwire.GeneratePeerId("test1"), infoHash)
 		assert.Equal(t, nil, err)
 		t.Log(string(metaData))
 	}

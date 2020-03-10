@@ -34,7 +34,7 @@ func TestParseMetadataFiles(t *testing.T) {
 func TestRquestMetadataFilesWithData(t *testing.T) {
 
 	data := withExtendedFetchMetaMsg(3, ExData, 0, 2, []byte{0x00, 0x01})
-	req := parseExtendedFetchMetaMsg(data)
+	req := parseExtendedFetchMetaMsg(data[4:])
 	assert.Equal(t, 3, req.ExMessageId())
 	assert.Equal(t, ExData, req.MsgType())
 	assert.Equal(t, 0, req.PieceNum())

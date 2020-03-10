@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/GalaIO/P2Pcrawler/misc"
+	"io"
 )
 
 // refer http://www.bittorrent.org/beps/bep_0003.html
@@ -14,18 +15,26 @@ const PeerIdLen = 20
 const InfoHashLen = 20
 const PrefixLen = 4
 
-var defaultReservedBytes = []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+var defaultReservedBytes = []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
 var supportProtocolName = "BitTorrent protocol"
 var reservedBytes = supportExterned(defaultReservedBytes)
-var localPeerId = generatePeerId("galaio.peerId")
+var localPeerId = GeneratePeerId("galaio.peerId")
 
 var peerWireLogger = misc.GetLogger().SetPrefix("peerwire")
 
 type PeerMsgType int
 
 const (
-	ChokePeerMsg    PeerMsgType = iota
-	ExtendedPeerMsg             = 20
+	ChokePeerMsg PeerMsgType = iota
+	UnChokePeerMsg
+	InterestedPeerMsg
+	NotInterestedPeerMsg
+	HavePeerMsg
+	BitFieldPeerMsg
+	RequestPeerMsg
+	PiecePeerMsg
+	CancelPeerMsg
+	ExtendedPeerMsg = 20
 )
 
 type HandShakeMsg interface {
@@ -99,6 +108,26 @@ func withHandShakeMsg(peerId, infoHash []byte) []byte {
 	return handShakeMsg.Bytes()
 }
 
+type PrefixLenMsg interface {
+	PeerMsgType() PeerMsgType
+}
+
+type BasePrefixLenMsg struct {
+	msgType PeerMsgType
+}
+
+func NewBasePrefixLenMsg(msgType PeerMsgType) *BasePrefixLenMsg {
+	return &BasePrefixLenMsg{msgType: msgType}
+}
+
+func (b *BasePrefixLenMsg) PeerMsgType() PeerMsgType {
+	return b.msgType
+}
+
+func parsePrefixLenMsg(data []byte) PrefixLenMsg {
+	return NewBasePrefixLenMsg(PeerMsgType(data[0]))
+}
+
 func supportExterned(bytes []byte) []byte {
 	bytes[5] = bytes[5] | 0x10
 	return bytes
@@ -110,4 +139,20 @@ func parsePrefixLen(data []byte) int {
 		peerWireLogger.Panic("parseExtendedHandShake wrong data len", misc.Dict{"len": len(data)})
 	}
 	return int(preLen)
+}
+
+// without prefix bytes
+func readBytesByPrefixLenMsg(reader io.Reader) ([]byte, error) {
+	preLenbytes := make([]byte, PrefixLen)
+	_, err := reader.Read(preLenbytes)
+	if err != nil {
+		return nil, err
+	}
+	preLen := parsePrefixLen(preLenbytes)
+	buf := make([]byte, preLen)
+	_, err = reader.Read(buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf, nil
 }

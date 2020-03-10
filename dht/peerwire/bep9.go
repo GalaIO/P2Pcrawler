@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/GalaIO/P2Pcrawler/misc"
-	"io/ioutil"
 	"net"
 	"strings"
 	"time"
@@ -122,7 +121,7 @@ func withExtendedFetchMetaMsg(exMsgId int, mType ExFecthMetaType, pieceNum, tota
 var fetchMetaLogger = misc.GetLogger().SetPrefix("FetchMetadata")
 
 // fetch .torrent file from peer
-func FetchMetaData(laddr string, infoHash []byte) (ret []byte, retErr error) {
+func FetchMetaData(laddr string, peerId, infoHash []byte) (ret []byte, retErr error) {
 	defer func() {
 		if err := recover(); err != nil {
 			ret = nil
@@ -130,16 +129,20 @@ func FetchMetaData(laddr string, infoHash []byte) (ret []byte, retErr error) {
 			retErr = errors.New("FetchMetaData err")
 		}
 	}()
-	conn, err := net.DialTimeout("tcp", laddr, 3*time.Second)
+	conn, err := net.DialTimeout("tcp", laddr, 100*time.Second)
 	if err != nil {
 		fetchMetaLogger.Panic("connect peer err", misc.Dict{"laddr": laddr, "err": err})
 	}
 
 	// handshake, exchange info
-	conn.Write(withHandShakeMsg(localPeerId, infoHash))
+	_, err = conn.Write(withHandShakeMsg(peerId, infoHash))
+	if err != nil {
+		fetchMetaLogger.Panic("write handshake err", misc.Dict{"laddr": laddr, "err": err})
+	}
 
 	// get handshake response
-	readBytes, err := ioutil.ReadAll(conn)
+	readBytes := make([]byte, handShakeLen)
+	_, err = conn.Read(reservedBytes)
 	if err != nil {
 		fetchMetaLogger.Panic("get handshake response err", misc.Dict{"laddr": laddr, "err": err})
 	}
@@ -153,10 +156,13 @@ func FetchMetaData(laddr string, infoHash []byte) (ret []byte, retErr error) {
 
 	// extended handshake, exchange info
 	msgId := 3
-	conn.Write(withExtendedhandShake(misc.Dict{"ut_metadata": msgId}, nil))
+	_, err = conn.Write(withExtendedhandShake(misc.Dict{"ut_metadata": msgId}, nil))
+	if err != nil {
+		fetchMetaLogger.Panic("write extended handshake err", misc.Dict{"laddr": laddr, "err": err})
+	}
 
 	// get extended handshake response
-	readBytes, err = ioutil.ReadAll(conn)
+	readBytes, err = readBytesByPrefixLenMsg(conn)
 	if err != nil {
 		fetchMetaLogger.Panic("get extended handshake response err", misc.Dict{"laddr": laddr, "err": err})
 	}
@@ -176,23 +182,47 @@ func FetchMetaData(laddr string, infoHash []byte) (ret []byte, retErr error) {
 	if metaSize%SizeOf16KB > 0 {
 		pieceCount++
 	}
-	var fileBytes bytes.Buffer
-	fileBytes.Grow(metaSize)
+	fileBytes := make([][]byte, pieceCount)
+	totalSize := 0
 	for i := 0; i < pieceCount; i++ {
 		// request piece
-		conn.Write(withExtendedFetchMetaMsg(msgId, ExRequest, i, 0))
-
+		_, err := conn.Write(withExtendedFetchMetaMsg(msgId, ExRequest, i, 0))
+		if err != nil {
+			fetchMetaLogger.Panic("write request piece err", misc.Dict{"laddr": laddr, "err": err})
+		}
+	}
+	for i := 0; i < pieceCount; {
 		// get piece
-		bytes, err := ioutil.ReadAll(conn)
+		bytes, err := readBytesByPrefixLenMsg(conn)
 		if err != nil {
 			fetchMetaLogger.Panic("get extended piece response err", misc.Dict{"laddr": laddr, "err": err})
 		}
+
+		prefixLenMsg := parsePrefixLenMsg(bytes)
+		if ExtendedPeerMsg != prefixLenMsg.PeerMsgType() {
+			fetchMetaLogger.Info("fetch bep3 msg", misc.Dict{"laddr": laddr, "msgType": int(prefixLenMsg.PeerMsgType())})
+			continue
+		}
 		fetchMetaResp := parseExtendedFetchMetaMsg(bytes)
 		// check if same msgId, not reject msg, and correct piece num
-		if ExData != fetchMetaResp.MsgType() || msgId != fetchMetaResp.ExMessageId() || i != fetchMetaResp.PieceNum() {
+		if ExData != fetchMetaResp.MsgType() || msgId != fetchMetaResp.ExMessageId() {
 			fetchMetaLogger.Panic("get extended piece wrong format", misc.Dict{"laddr": laddr, "fetchMetaResp": fetchMetaResp})
 		}
-		fileBytes.Write(fetchMetaResp.Data())
+		pieceNum := fetchMetaResp.PieceNum()
+		fileBytes[pieceNum] = fetchMetaResp.Data()
+		totalSize += len(fetchMetaResp.Data())
+		i++
 	}
-	return fileBytes.Bytes(), nil
+
+	// merge pieces
+	result := make([]byte, totalSize)
+	for _, bs := range fileBytes {
+		result = append(result, bs...)
+	}
+
+	// checksum
+	if !bytes.Equal(infoHash, GenerateInfoHash(result)) {
+		fetchMetaLogger.Panic("chesum metadata not match", misc.Dict{"laddr": laddr})
+	}
+	return result, nil
 }
