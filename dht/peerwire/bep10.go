@@ -17,7 +17,7 @@ type ExtendedHandShakeMsg interface {
 }
 
 type BaseExHandShakeMsg struct {
-	dict misc.Dict
+	ExDict misc.Dict
 }
 
 func NewBaseExHandShakeMsg(metadata misc.Dict, dict misc.Dict) *BaseExHandShakeMsg {
@@ -25,28 +25,28 @@ func NewBaseExHandShakeMsg(metadata misc.Dict, dict misc.Dict) *BaseExHandShakeM
 		dict = misc.Dict{}
 	}
 	dict["m"] = metadata
-	return &BaseExHandShakeMsg{dict: dict}
+	return &BaseExHandShakeMsg{ExDict: dict}
 }
 
 func (b *BaseExHandShakeMsg) Metadata() misc.Dict {
-	return b.dict.GetDict("m")
+	return b.ExDict.GetDict("m")
 }
 
 func (b *BaseExHandShakeMsg) Dict() misc.Dict {
-	return b.dict
+	return b.ExDict
 }
 
 func (b *BaseExHandShakeMsg) Bytes() []byte {
 	var buf bytes.Buffer
-	dst, err := misc.EncodeDict(b.dict)
+	dst, err := misc.EncodeDict(b.ExDict)
 	if err != nil {
-		peerWireLogger.Panic("encode extended handshake err", misc.Dict{"dict": b.dict, "err": err})
+		peerWireLogger.Panic("encode extended handshake err", misc.Dict{"ExDict": b.ExDict, "err": err})
 	}
 	preLenBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(preLenBytes, uint32(len(dst)+2))
 	buf.Write(preLenBytes)
 	buf.WriteByte(byte(ExtendedPeerMsg)) // peer msg type, extended msg
-	buf.WriteByte(byte(handShakeMsgId))  // msgId = 0 extended handshake msg
+	buf.WriteByte(byte(handShakeMsgId))  // MsgId = 0 extended handshake msg
 	buf.Write([]byte(dst))
 	return buf.Bytes()
 }
@@ -58,7 +58,7 @@ func parseExtendedHandShake(data []byte) ExtendedHandShakeMsg {
 	msgId := int(data[1])
 
 	if ExtendedPeerMsg != msgType || handShakeMsgId != msgId {
-		peerWireLogger.Panic("extended handshake resp err", misc.Dict{"msgType": msgType, "msgId": msgId})
+		peerWireLogger.Panic("extended handshake resp err", misc.Dict{"ExMsgType": msgType, "MsgId": msgId})
 	}
 	dict, err := misc.DecodeDict(string(data[2:]))
 	if err != nil {

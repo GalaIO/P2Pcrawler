@@ -32,31 +32,31 @@ type ExtendedFetchMetaMsg interface {
 }
 
 type BaseExFetchMetaMsg struct {
-	msgId     int
-	msgType   ExFecthMetaType
-	pieceNum  int
-	data      []byte
-	totalSize int
+	MsgId       int
+	ExMsgType   ExFecthMetaType
+	ExPieceNum  int
+	data        []byte
+	ExTotalSize int
 }
 
 func (b *BaseExFetchMetaMsg) TotalSize() int {
-	return b.totalSize
+	return b.ExTotalSize
 }
 
 func NewBaseExFetchMetaMsg(msgId int, msgType ExFecthMetaType, pieceNum, totalSize int, data []byte) *BaseExFetchMetaMsg {
-	return &BaseExFetchMetaMsg{msgId: msgId, msgType: msgType, pieceNum: pieceNum, totalSize: totalSize, data: data}
+	return &BaseExFetchMetaMsg{MsgId: msgId, ExMsgType: msgType, ExPieceNum: pieceNum, ExTotalSize: totalSize, data: data}
 }
 
 func (b *BaseExFetchMetaMsg) ExMessageId() int {
-	return b.msgId
+	return b.MsgId
 }
 
 func (b *BaseExFetchMetaMsg) MsgType() ExFecthMetaType {
-	return b.msgType
+	return b.ExMsgType
 }
 
 func (b *BaseExFetchMetaMsg) PieceNum() int {
-	return b.pieceNum
+	return b.ExPieceNum
 }
 
 func (b *BaseExFetchMetaMsg) Data() []byte {
@@ -64,13 +64,13 @@ func (b *BaseExFetchMetaMsg) Data() []byte {
 }
 
 func (b *BaseExFetchMetaMsg) Bytes() []byte {
-	dict := misc.Dict{"msg_type": int(b.msgType), "piece": b.pieceNum}
+	dict := misc.Dict{"msg_type": int(b.ExMsgType), "piece": b.ExPieceNum}
 	if len(b.data) > 0 {
-		dict["total_size"] = b.totalSize
+		dict["total_size"] = b.ExTotalSize
 	}
 	dst, err := misc.EncodeDict(dict)
 	if err != nil {
-		peerWireLogger.Panic("encode extended fetchmetadata err", misc.Dict{"msgtype": b.msgType, "err": err})
+		peerWireLogger.Panic("encode extended fetchmetadata err", misc.Dict{"msgtype": b.ExMsgType, "err": err})
 	}
 
 	preLen := 2 + len(dst) + len(b.data)
@@ -81,7 +81,7 @@ func (b *BaseExFetchMetaMsg) Bytes() []byte {
 	buf.Grow(preLen + PrefixLen)
 	buf.Write(preLenBytes)
 	buf.WriteByte(byte(ExtendedPeerMsg)) // peer msg type, extended msg
-	buf.WriteByte(byte(b.msgId))
+	buf.WriteByte(byte(b.MsgId))
 	buf.Write([]byte(dst))
 	if len(b.data) > 0 {
 		buf.Write(b.data)
@@ -129,7 +129,7 @@ func FetchMetaData(laddr string, peerId, infoHash []byte) (ret []byte, retErr er
 			retErr = errors.New("FetchMetaData err")
 		}
 	}()
-	conn, err := net.DialTimeout("tcp", laddr, 100*time.Second)
+	conn, err := net.DialTimeout("tcp", laddr, 3*time.Second)
 	if err != nil {
 		fetchMetaLogger.Panic("connect peer err", misc.Dict{"laddr": laddr, "err": err})
 	}
@@ -142,7 +142,7 @@ func FetchMetaData(laddr string, peerId, infoHash []byte) (ret []byte, retErr er
 
 	// get handshake response
 	readBytes := make([]byte, handShakeLen)
-	_, err = conn.Read(reservedBytes)
+	_, err = conn.Read(readBytes)
 	if err != nil {
 		fetchMetaLogger.Panic("get handshake response err", misc.Dict{"laddr": laddr, "err": err})
 	}
@@ -155,7 +155,7 @@ func FetchMetaData(laddr string, peerId, infoHash []byte) (ret []byte, retErr er
 	}
 
 	// extended handshake, exchange info
-	msgId := 3
+	msgId := 1
 	_, err = conn.Write(withExtendedhandShake(misc.Dict{"ut_metadata": msgId}, nil))
 	if err != nil {
 		fetchMetaLogger.Panic("write extended handshake err", misc.Dict{"laddr": laddr, "err": err})
@@ -167,10 +167,8 @@ func FetchMetaData(laddr string, peerId, infoHash []byte) (ret []byte, retErr er
 		fetchMetaLogger.Panic("get extended handshake response err", misc.Dict{"laddr": laddr, "err": err})
 	}
 	exHandShakeResp := parseExtendedHandShake(readBytes)
-	metadata := exHandShakeResp.Metadata()
-	if msgId != metadata.GetInteger("ut_metadata") {
-		fetchMetaLogger.Panic("get extended handshake not support", misc.Dict{"laddr": laddr, "exHandShakeResp": exHandShakeResp})
-	}
+	fetchMetaLogger.Info("get extended handshake", misc.Dict{"laddr": laddr, "exHandShakeResp": exHandShakeResp})
+
 	dict := exHandShakeResp.Dict()
 	if !dict.Exist("metadata_size") {
 		fetchMetaLogger.Panic("get extended handshake wrong format", misc.Dict{"laddr": laddr, "exHandShakeResp": exHandShakeResp})
@@ -183,7 +181,6 @@ func FetchMetaData(laddr string, peerId, infoHash []byte) (ret []byte, retErr er
 		pieceCount++
 	}
 	fileBytes := make([][]byte, pieceCount)
-	totalSize := 0
 	for i := 0; i < pieceCount; i++ {
 		// request piece
 		_, err := conn.Write(withExtendedFetchMetaMsg(msgId, ExRequest, i, 0))
@@ -191,8 +188,10 @@ func FetchMetaData(laddr string, peerId, infoHash []byte) (ret []byte, retErr er
 			fetchMetaLogger.Panic("write request piece err", misc.Dict{"laddr": laddr, "err": err})
 		}
 	}
-	for i := 0; i < pieceCount; {
-		// get piece
+	totalSize := 0
+	count := 0
+	// only read pieceCount times, ignore pep msg
+	for i := 0; i < pieceCount; i++ {
 		bytes, err := readBytesByPrefixLenMsg(conn)
 		if err != nil {
 			fetchMetaLogger.Panic("get extended piece response err", misc.Dict{"laddr": laddr, "err": err})
@@ -200,29 +199,32 @@ func FetchMetaData(laddr string, peerId, infoHash []byte) (ret []byte, retErr er
 
 		prefixLenMsg := parsePrefixLenMsg(bytes)
 		if ExtendedPeerMsg != prefixLenMsg.PeerMsgType() {
-			fetchMetaLogger.Info("fetch bep3 msg", misc.Dict{"laddr": laddr, "msgType": int(prefixLenMsg.PeerMsgType())})
+			fetchMetaLogger.Info("fetch bep3 msg", misc.Dict{"laddr": laddr, "ExMsgType": int(prefixLenMsg.PeerMsgType())})
 			continue
 		}
 		fetchMetaResp := parseExtendedFetchMetaMsg(bytes)
-		// check if same msgId, not reject msg, and correct piece num
+		fetchMetaLogger.Info("fetch extended msg", misc.Dict{"laddr": laddr, "fetchMetaResp": fetchMetaResp})
+		// check if same MsgId, not reject msg, and correct piece num
 		if ExData != fetchMetaResp.MsgType() || msgId != fetchMetaResp.ExMessageId() {
-			fetchMetaLogger.Panic("get extended piece wrong format", misc.Dict{"laddr": laddr, "fetchMetaResp": fetchMetaResp})
+			fetchMetaLogger.Error("get extended piece wrong format", misc.Dict{"laddr": laddr, "fetchMetaResp": fetchMetaResp})
+			break
 		}
 		pieceNum := fetchMetaResp.PieceNum()
 		fileBytes[pieceNum] = fetchMetaResp.Data()
 		totalSize += len(fetchMetaResp.Data())
-		i++
+		count++
 	}
 
 	// merge pieces
-	result := make([]byte, totalSize)
-	for _, bs := range fileBytes {
-		result = append(result, bs...)
+	result := make([]byte, 0, totalSize)
+	for i := 0; i < count; i++ {
+		result = append(result, fileBytes[i]...)
 	}
-
+	fetchMetaLogger.Info("fetch data", misc.Dict{"result": hex.EncodeToString(result)})
 	// checksum
 	if !bytes.Equal(infoHash, GenerateInfoHash(result)) {
 		fetchMetaLogger.Panic("chesum metadata not match", misc.Dict{"laddr": laddr})
 	}
+	conn.Close()
 	return result, nil
 }

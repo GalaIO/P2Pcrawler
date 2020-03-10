@@ -133,14 +133,6 @@ func supportExterned(bytes []byte) []byte {
 	return bytes
 }
 
-func parsePrefixLen(data []byte) int {
-	preLen := binary.BigEndian.Uint32(data[:PrefixLen])
-	if PrefixLen+preLen > uint32(len(data)) {
-		peerWireLogger.Panic("parseExtendedHandShake wrong data len", misc.Dict{"len": len(data)})
-	}
-	return int(preLen)
-}
-
 // without prefix bytes
 func readBytesByPrefixLenMsg(reader io.Reader) ([]byte, error) {
 	preLenbytes := make([]byte, PrefixLen)
@@ -148,7 +140,7 @@ func readBytesByPrefixLenMsg(reader io.Reader) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	preLen := parsePrefixLen(preLenbytes)
+	preLen := binary.BigEndian.Uint32(preLenbytes)
 	buf := make([]byte, preLen)
 	_, err = reader.Read(buf)
 	if err != nil {
