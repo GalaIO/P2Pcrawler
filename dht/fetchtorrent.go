@@ -46,9 +46,12 @@ func parseFetchAddr(ctx *krpc.RpcContext) string {
 	req := ctx.Request()
 	body := req.Body()
 	port := body.GetInteger("port")
-	impliedPort := body.GetInteger("implied_port")
+	useUdpPort := false
+	if body.Exist("implied_port") && body.GetInteger("implied_port") > 0 {
+		useUdpPort = true
+	}
 	laddr := ctx.RemoteAddr().IP.String() + ":" + strconv.Itoa(port)
-	if impliedPort > 0 {
+	if useUdpPort {
 		laddr = ctx.RemoteAddr().String()
 	}
 	return laddr

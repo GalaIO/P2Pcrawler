@@ -1,6 +1,7 @@
 package misc
 
 import (
+	"encoding/hex"
 	"testing"
 )
 import "github.com/stretchr/testify/assert"
@@ -164,4 +165,10 @@ func TestMapDecode(t *testing.T) {
 	res, _ = DecodeDict("d4:spaml1:a1:be3:aged4:mathi10e7:englishi20eee")
 	assert.Equal(t, Dict{"spam": List{"a", "b"}, "age": Dict{"math": 10, "english": 20}}, res)
 
+}
+
+func TestName(t *testing.T) {
+	s, _ := hex.DecodeString("64313a71393a66696e645f6e6f6465313a7264323a696432303a9be1701a5ac5a93f2c945f9bbb33d224742ac3fa323a6970343a7a33a950373a6e6f646573007632363a9be1696018a69ba161651978c76c46f34a6aba747a33a950520865313a74343a30346430313a79313a7265")
+	dicts, _ := DecodeDict(string(s))
+	t.Log(dicts)
 }
