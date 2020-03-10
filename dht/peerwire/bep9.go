@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"github.com/GalaIO/P2Pcrawler/misc"
 	"net"
 	"strings"
@@ -90,7 +89,6 @@ func (b *BaseExFetchMetaMsg) Bytes() []byte {
 }
 
 func parseExtendedFetchMetaMsg(data []byte) ExtendedFetchMetaMsg {
-	fmt.Println("parseExtendedFetchMetaMsg", hex.EncodeToString(data))
 	msgType := PeerMsgType(data[0])
 	if ExtendedPeerMsg != msgType {
 		peerWireLogger.Panic("extended fetchmetadata not extended msg", misc.Dict{"totalLen": len(data)})
@@ -122,17 +120,18 @@ var fetchMetaLogger = misc.GetLogger().SetPrefix("FetchMetadata")
 
 // fetch .torrent file from peer
 func FetchMetaData(laddr string, peerId, infoHash []byte) (ret []byte, retErr error) {
+	conn, err := net.DialTimeout("tcp", laddr, 3*time.Second)
+	if err != nil {
+		fetchMetaLogger.Panic("connect peer err", misc.Dict{"laddr": laddr, "err": err})
+	}
 	defer func() {
 		if err := recover(); err != nil {
 			ret = nil
 			fetchMetaLogger.Error("FetchMetaData err", misc.Dict{"laddr": laddr, "err": err})
 			retErr = errors.New("FetchMetaData err")
 		}
+		conn.Close()
 	}()
-	conn, err := net.DialTimeout("tcp", laddr, 3*time.Second)
-	if err != nil {
-		fetchMetaLogger.Panic("connect peer err", misc.Dict{"laddr": laddr, "err": err})
-	}
 
 	// handshake, exchange info
 	_, err = conn.Write(withHandShakeMsg(peerId, infoHash))
@@ -225,6 +224,6 @@ func FetchMetaData(laddr string, peerId, infoHash []byte) (ret []byte, retErr er
 	if !bytes.Equal(infoHash, GenerateInfoHash(result)) {
 		fetchMetaLogger.Panic("chesum metadata not match", misc.Dict{"laddr": laddr})
 	}
-	conn.Close()
+	fetchMetaLogger.Panic("chesum metadata match", misc.Dict{"laddr": laddr, "infohash": hex.EncodeToString(infoHash)})
 	return result, nil
 }

@@ -3,8 +3,6 @@ package peerwire
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
-	"fmt"
 	"github.com/GalaIO/P2Pcrawler/misc"
 	"io"
 )
@@ -83,7 +81,6 @@ func (b *BaseHandShakeMsg) Bytes() []byte {
 }
 
 func parseHandShakeMsg(data []byte) HandShakeMsg {
-	fmt.Println("parseHandShakeMsg", hex.EncodeToString(data))
 	if handShakeLen != len(data) {
 		peerWireLogger.Panic("parseHandShakeMsg wrong data len", misc.Dict{"len": len(data)})
 	}

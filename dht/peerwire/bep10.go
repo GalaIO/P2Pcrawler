@@ -3,8 +3,6 @@ package peerwire
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
-	"fmt"
 	"github.com/GalaIO/P2Pcrawler/misc"
 )
 
@@ -53,7 +51,6 @@ func (b *BaseExHandShakeMsg) Bytes() []byte {
 
 // extended handshake, without prefixlen
 func parseExtendedHandShake(data []byte) ExtendedHandShakeMsg {
-	fmt.Println("parseExtendedHandShake", hex.EncodeToString(data))
 	msgType := PeerMsgType(data[0])
 	msgId := int(data[1])
 
