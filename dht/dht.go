@@ -30,6 +30,9 @@ func Run() {
 	rpcServer.RegisteHandler("get_peers", getPeersHandler)
 	rpcServer.RegisteHandler("announce_peer", announcePeerHandler)
 
+	dhtLogger.Info("enter fetchTorrent loop...", nil)
+	go fetchTorrent()
+
 	dhtLogger.Info("enter listen loop...", nil)
 	rpcServer.Listen()
 }

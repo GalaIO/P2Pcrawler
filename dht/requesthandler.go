@@ -39,4 +39,6 @@ func announcePeerHandler(ctx *krpc.RpcContext) {
 	dhtLogger.Info("get announce_peer request", misc.Dict{"txId": req.TxId(), "infoHash": hash, "port": port})
 	infoHashLogger.Info("announce_peer", misc.Dict{"addr": ctx.RemoteAddr().String(), "port": port, "infoHash": hash})
 	ctx.WriteAs(WithAnnouncePeerResponse(req.TxId(), localNodeId))
+	// to chan
+	recvInfoHash <- ctx
 }

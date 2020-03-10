@@ -18,7 +18,7 @@ const PrefixLen = 4
 var defaultReservedBytes = []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
 var supportProtocolName = "BitTorrent protocol"
 var reservedBytes = supportExterned(defaultReservedBytes)
-var localPeerId = GeneratePeerId("galaio.peerId")
+var LocalPeerId = GeneratePeerId("galaio.peerId")
 
 var peerWireLogger = misc.GetLogger().SetPrefix("peerwire")
 
