@@ -43,7 +43,7 @@ type bufferLogger struct {
 // global var
 var bufferedLoggers = &bufferLogger{
 	bufferedLoggers: make(map[string]Logger, 10),
-	level:           DEBUG,
+	level:           ERROR,
 }
 
 var defaultLoggerFactory LoggerFactory = NewConsoleLoggerFactory()
