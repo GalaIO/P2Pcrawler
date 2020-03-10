@@ -35,8 +35,9 @@ func fetchHandler(ctx *krpc.RpcContext) {
 	hash := hex.EncodeToString([]byte(infoHash))
 	result, err := peerwire.FetchMetaData(ctx.RemoteAddr().String(), peerwire.LocalPeerId, misc.Str2Bytes(infoHash))
 	if err != nil {
-		flushTorrentFile(hash, result)
+		return
 	}
+	flushTorrentFile(hash, result)
 }
 
 func flushTorrentFile(fileName string, data []byte) {
@@ -51,5 +52,4 @@ func flushTorrentFile(fileName string, data []byte) {
 		dhtLogger.Error("write file err", misc.Dict{"err": err})
 		return
 	}
-	return
 }

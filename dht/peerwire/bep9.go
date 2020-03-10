@@ -122,7 +122,7 @@ var fetchMetaLogger = misc.GetLogger().SetPrefix("FetchMetadata")
 func FetchMetaData(laddr string, peerId, infoHash []byte) (ret []byte, retErr error) {
 	conn, err := net.DialTimeout("tcp", laddr, 3*time.Second)
 	if err != nil {
-		fetchMetaLogger.Panic("connect peer err", misc.Dict{"laddr": laddr, "err": err})
+		return nil, err
 	}
 	defer func() {
 		if err := recover(); err != nil {
@@ -224,6 +224,6 @@ func FetchMetaData(laddr string, peerId, infoHash []byte) (ret []byte, retErr er
 	if !bytes.Equal(infoHash, GenerateInfoHash(result)) {
 		fetchMetaLogger.Panic("chesum metadata not match", misc.Dict{"laddr": laddr})
 	}
-	fetchMetaLogger.Panic("chesum metadata match", misc.Dict{"laddr": laddr, "infohash": hex.EncodeToString(infoHash)})
+	fetchMetaLogger.Error("chesum metadata match", misc.Dict{"laddr": laddr, "infohash": hex.EncodeToString(infoHash)})
 	return result, nil
 }
