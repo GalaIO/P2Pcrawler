@@ -32,7 +32,7 @@ func NewRpcServer(laddr string) *RpcServer {
 func (s *RpcServer) Listen() {
 
 	// 开启多个线程消费
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 300; i++ {
 		go func() {
 			for {
 				packet := <-s.udpConn.RecvChan()

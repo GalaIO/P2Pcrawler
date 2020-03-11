@@ -43,7 +43,7 @@ type bufferLogger struct {
 // global var
 var bufferedLoggers = &bufferLogger{
 	bufferedLoggers: make(map[string]Logger, 10),
-	level:           ERROR,
+	level:           INFO,
 }
 
 var defaultLoggerFactory LoggerFactory = NewConsoleLoggerFactory()
@@ -69,6 +69,12 @@ func (b *bufferLogger) flush() error {
 	return nil
 }
 
+func (b *bufferLogger) setLevel(level LogLevel) {
+	b.Lock()
+	defer b.Unlock()
+	b.level = level
+}
+
 // using this function when programe init
 func InitLogger(factory LoggerFactory, level LogLevel) {
 	defaultLoggerFactory = factory
@@ -82,6 +88,10 @@ func GetLogger(names ...string) Logger {
 		loggerName = names[0]
 	}
 	return bufferedLoggers.mapLogger(loggerName)
+}
+
+func SetLevel(level LogLevel) {
+	bufferedLoggers.setLevel(level)
 }
 
 func Close() error {

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"github.com/GalaIO/P2Pcrawler/misc"
+	"io"
 	"net"
 	"strings"
 	"time"
@@ -126,22 +127,142 @@ func FetchMetaData(laddr string, peerId, infoHash []byte) (ret []byte, retErr er
 	}
 	defer func() {
 		if err := recover(); err != nil {
+			//debug.PrintStack()
 			ret = nil
 			fetchMetaLogger.Error("FetchMetaData err", misc.Dict{"laddr": laddr, "err": err})
 			retErr = errors.New("FetchMetaData err")
 		}
 		conn.Close()
 	}()
+	conn.SetReadDeadline(time.Now().Add(time.Second * 1))
+	conn.SetWriteDeadline(time.Time{})
+	peerConn := NewPeerConn(laddr, conn, infoHash, time.Second*10)
+	handshakePeer(peerId, peerConn)
+	initialMessages(peerConn)
+	readMetaDataLoop(peerConn)
 
-	// handshake, exchange info
-	_, err = conn.Write(withHandShakeMsg(peerId, infoHash))
+	// merge pieces
+	if !peerConn.CompledMetaData() {
+		return nil, errors.New("cannot completed download metadata")
+	}
+
+	result := make([]byte, 0, peerConn.metaDataSize)
+	for i := 0; i < len(peerConn.requestedMetaData); i++ {
+		result = append(result, peerConn.metaData[i]...)
+	}
+	// checksum
+	if !bytes.Equal(peerConn.infoHash, GenerateInfoHash(result)) {
+		fetchMetaLogger.Error("chesum metadata not match", misc.Dict{"laddr": laddr, "result": hex.EncodeToString(result)})
+		return nil, errors.New("check sum err")
+	}
+	fetchMetaLogger.Info("chesum metadata match", misc.Dict{"laddr": laddr, "infohash": hex.EncodeToString(peerConn.infoHash)})
+
+	return result, nil
+}
+
+// read loop for communication
+func readMetaDataLoop(peerConn *PeerConn) {
+
+	laddr := peerConn.addr
+	conn := peerConn.conn
+	for !peerConn.CompledMetaData() && !peerConn.IsReadLoopExpire() {
+		readBytes, err := readBytesByPrefixLenMsg(conn)
+		if err == io.EOF || len(readBytes) == 0 {
+			// keep liave
+			//fetchMetaLogger.Info("keep alive msg", misc.Dict{"laddr": laddr})
+			continue
+		}
+		if err != nil {
+			fetchMetaLogger.Panic("read prefix length err", misc.Dict{"laddr": laddr, "err": err})
+		}
+		prefixLenMsg := parsePrefixLenMsg(readBytes)
+		switch prefixLenMsg.PeerMsgType() {
+		case ExtendedPeerMsg:
+			handleExtendedMsg(peerConn, readBytes)
+		default:
+			// other msg just pass
+			fetchMetaLogger.Info("fetch bep3 msg", misc.Dict{"laddr": laddr, "peerMsgType": int(prefixLenMsg.PeerMsgType()), "payload": hex.EncodeToString(readBytes)})
+		}
+	}
+
+}
+
+// handle extend msg
+func handleExtendedMsg(peerConn *PeerConn, readBytes []byte) {
+
+	laddr := peerConn.addr
+	msgId := int(readBytes[1])
+	switch msgId {
+	//HandshakeExtendedID
+	case 0:
+		// get extended handshake response
+		exHandShakeResp := parseExtendedHandShake(readBytes)
+		fetchMetaLogger.Info("get extended handshake", misc.Dict{"laddr": laddr, "exHandShakeResp": exHandShakeResp})
+
+		dict := exHandShakeResp.Dict()
+		if !dict.Exist("metadata_size") {
+			fetchMetaLogger.Panic("get extended handshake wrong format", misc.Dict{"laddr": laddr, "exHandShakeResp": exHandShakeResp})
+		}
+
+		// get piece
+		metaSize := dict.GetInteger("metadata_size")
+		peerConn.metaDataSize = metaSize
+		pieceCount := metaSize / SizeOf16KB
+		if metaSize%SizeOf16KB > 0 {
+			pieceCount++
+		}
+		peerConn.metaData = make([][]byte, pieceCount)
+		peerConn.requestedMetaData = make([]bool, pieceCount)
+		for i := 0; i < pieceCount; i++ {
+			peerConn.requestedMetaData[i] = false
+			// request piece
+			_, err := peerConn.conn.Write(withExtendedFetchMetaMsg(1, ExRequest, i, 0))
+			if err != nil {
+				fetchMetaLogger.Panic("write request piece err", misc.Dict{"laddr": laddr, "err": err})
+			}
+		}
+		fetchMetaLogger.Info("request pieces", misc.Dict{"laddr": laddr, "metaSize": metaSize, "pieceCount": pieceCount})
+	//metadataExtendedId
+	case 1:
+		fetchMetaResp := parseExtendedFetchMetaMsg(readBytes)
+		fetchMetaLogger.Info("fetch extended msg", misc.Dict{"laddr": laddr, "fetchMetaResp": fetchMetaResp})
+		// check if same MsgId, not reject msg, and correct piece num
+		if ExData != fetchMetaResp.MsgType() {
+			fetchMetaLogger.Error("get extended piece wrong format", misc.Dict{"laddr": laddr, "fetchMetaResp": fetchMetaResp})
+			return
+		}
+		pieceNum := fetchMetaResp.PieceNum()
+		peerConn.metaData[pieceNum] = fetchMetaResp.Data()
+		peerConn.requestedMetaData[pieceNum] = true
+	//pexExtendedId
+	case 2:
+		fetchMetaLogger.Info("fetch pexExtendedId extend msg", misc.Dict{"laddr": laddr, "msgid": msgId, "payload": hex.EncodeToString(readBytes)})
+	default:
+		fetchMetaLogger.Info("fetch pexExtendedId wrong extend msg", misc.Dict{"laddr": laddr, "msgid": msgId, "payload": hex.EncodeToString(readBytes)})
+
+	}
+
+}
+
+// send bep extend message, ie. extendedHandshake, fast, dht port
+func initialMessages(peerConn *PeerConn) {
+	// extended handshake, exchange info, ut_metadata = 1 is support extended
+	_, err := peerConn.conn.Write(withExtendedhandShake(misc.Dict{"ut_metadata": 1}, nil))
+	if err != nil {
+		fetchMetaLogger.Panic("write extended handshake err", misc.Dict{"laddr": peerConn.addr, "err": err})
+	}
+}
+
+// handshake, exchange info
+func handshakePeer(peerId []byte, peerConn *PeerConn) {
+	laddr := peerConn.addr
+	_, err := peerConn.conn.Write(withHandShakeMsg(peerId, peerConn.infoHash))
 	if err != nil {
 		fetchMetaLogger.Panic("write handshake err", misc.Dict{"laddr": laddr, "err": err})
 	}
-
 	// get handshake response
 	readBytes := make([]byte, handShakeLen)
-	_, err = conn.Read(readBytes)
+	_, err = peerConn.conn.Read(readBytes)
 	if err != nil {
 		fetchMetaLogger.Panic("get handshake response err", misc.Dict{"laddr": laddr, "err": err})
 	}
@@ -152,77 +273,4 @@ func FetchMetaData(laddr string, peerId, infoHash []byte) (ret []byte, retErr er
 	if !handShakeResp.SupportExtended() {
 		fetchMetaLogger.Panic("get handshake not support extended protocol", misc.Dict{"laddr": laddr, "handShakeResp": handShakeResp})
 	}
-
-	// extended handshake, exchange info
-	msgId := 1
-	_, err = conn.Write(withExtendedhandShake(misc.Dict{"ut_metadata": msgId}, nil))
-	if err != nil {
-		fetchMetaLogger.Panic("write extended handshake err", misc.Dict{"laddr": laddr, "err": err})
-	}
-
-	// get extended handshake response
-	readBytes, err = readBytesByPrefixLenMsg(conn)
-	if err != nil {
-		fetchMetaLogger.Panic("get extended handshake response err", misc.Dict{"laddr": laddr, "err": err})
-	}
-	exHandShakeResp := parseExtendedHandShake(readBytes)
-	fetchMetaLogger.Info("get extended handshake", misc.Dict{"laddr": laddr, "exHandShakeResp": exHandShakeResp})
-
-	dict := exHandShakeResp.Dict()
-	if !dict.Exist("metadata_size") {
-		fetchMetaLogger.Panic("get extended handshake wrong format", misc.Dict{"laddr": laddr, "exHandShakeResp": exHandShakeResp})
-	}
-
-	// get piece
-	metaSize := dict.GetInteger("metadata_size")
-	pieceCount := metaSize / SizeOf16KB
-	if metaSize%SizeOf16KB > 0 {
-		pieceCount++
-	}
-	fileBytes := make([][]byte, pieceCount)
-	for i := 0; i < pieceCount; i++ {
-		// request piece
-		_, err := conn.Write(withExtendedFetchMetaMsg(msgId, ExRequest, i, 0))
-		if err != nil {
-			fetchMetaLogger.Panic("write request piece err", misc.Dict{"laddr": laddr, "err": err})
-		}
-	}
-	totalSize := 0
-	count := 0
-	// only read pieceCount times, ignore pep msg
-	for i := 0; i < pieceCount; i++ {
-		bytes, err := readBytesByPrefixLenMsg(conn)
-		if err != nil {
-			fetchMetaLogger.Panic("get extended piece response err", misc.Dict{"laddr": laddr, "err": err})
-		}
-
-		prefixLenMsg := parsePrefixLenMsg(bytes)
-		if ExtendedPeerMsg != prefixLenMsg.PeerMsgType() {
-			fetchMetaLogger.Info("fetch bep3 msg", misc.Dict{"laddr": laddr, "peerMsgType": int(prefixLenMsg.PeerMsgType())})
-			continue
-		}
-		fetchMetaResp := parseExtendedFetchMetaMsg(bytes)
-		fetchMetaLogger.Info("fetch extended msg", misc.Dict{"laddr": laddr, "fetchMetaResp": fetchMetaResp})
-		// check if same MsgId, not reject msg, and correct piece num
-		if ExData != fetchMetaResp.MsgType() || msgId != fetchMetaResp.ExMessageId() {
-			fetchMetaLogger.Error("get extended piece wrong format", misc.Dict{"laddr": laddr, "fetchMetaResp": fetchMetaResp})
-			break
-		}
-		pieceNum := fetchMetaResp.PieceNum()
-		fileBytes[pieceNum] = fetchMetaResp.Data()
-		totalSize += len(fetchMetaResp.Data())
-		count++
-	}
-
-	// merge pieces
-	result := make([]byte, 0, totalSize)
-	for i := 0; i < count; i++ {
-		result = append(result, fileBytes[i]...)
-	}
-	// checksum
-	if !bytes.Equal(infoHash, GenerateInfoHash(result)) {
-		fetchMetaLogger.Panic("chesum metadata not match", misc.Dict{"laddr": laddr, "result": hex.EncodeToString(result)})
-	}
-	fetchMetaLogger.Error("chesum metadata match", misc.Dict{"laddr": laddr, "infohash": hex.EncodeToString(infoHash)})
-	return result, nil
 }

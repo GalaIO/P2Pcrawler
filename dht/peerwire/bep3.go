@@ -3,6 +3,7 @@ package peerwire
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"github.com/GalaIO/P2Pcrawler/misc"
 	"io"
 )
@@ -12,8 +13,10 @@ const handShakeLen = 68
 const PeerIdLen = 20
 const InfoHashLen = 20
 const PrefixLen = 4
+const maxReadLength = 64 * 1024
 
-var defaultReservedBytes = []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
+// 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 support dht
+var defaultReservedBytes = []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 var supportProtocolName = "BitTorrent protocol"
 var reservedBytes = supportExterned(defaultReservedBytes)
 var LocalPeerId = GeneratePeerId("galaio.peerId")
@@ -138,6 +141,9 @@ func readBytesByPrefixLenMsg(reader io.Reader) ([]byte, error) {
 		return nil, err
 	}
 	preLen := binary.BigEndian.Uint32(preLenbytes)
+	if preLen > maxReadLength {
+		return nil, errors.New("read input toolarge")
+	}
 	buf := make([]byte, preLen)
 	_, err = reader.Read(buf)
 	if err != nil {
