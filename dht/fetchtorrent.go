@@ -13,7 +13,7 @@ var recvInfoHash = make(chan *krpc.RpcContext, 300000)
 
 func fetchTorrent() {
 	// 开启多个线程消费
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 100; i++ {
 		go func() {
 			for {
 				ctx := <-recvInfoHash

@@ -32,7 +32,7 @@ func NewRpcServer(laddr string) *RpcServer {
 func (s *RpcServer) Listen() {
 
 	// 开启多个线程消费
-	for i := 0; i < 300; i++ {
+	for i := 0; i < 100; i++ {
 		go func() {
 			for {
 				packet := <-s.udpConn.RecvChan()
@@ -116,14 +116,14 @@ func (s *RpcServer) recvPacketHandle(packet *RecvPacket) {
 
 	defer func() {
 		if err := recover(); err != nil {
-			serverLogger.Error("recv packet handle panic", misc.Dict{"from": packet.Addr.String(), "err": err, "bytes": hex.EncodeToString(packet.Bytes)})
+			serverLogger.Error("recv packet handle panic", misc.Dict{"from": packet.Addr.String(), "err": err, "bytesLen": len(packet.Bytes)})
 		}
 	}()
 
 	// parse packet
 	dict, _, err := misc.DecodeDictNoLimit(string(packet.Bytes))
 	if err != nil {
-		serverLogger.Error("decode bencode err", misc.Dict{"from": packet.Addr.String(), "err": err, "data": hex.EncodeToString(packet.Bytes)})
+		serverLogger.Error("decode bencode err", misc.Dict{"from": packet.Addr.String(), "err": err, "len": len(packet.Bytes)})
 		return
 	}
 	if exist := dict.Exist("y"); !exist {

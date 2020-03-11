@@ -152,7 +152,7 @@ func FetchMetaData(laddr string, peerId, infoHash []byte) (ret []byte, retErr er
 	}
 	// checksum
 	if !bytes.Equal(peerConn.infoHash, GenerateInfoHash(result)) {
-		fetchMetaLogger.Error("chesum metadata not match", misc.Dict{"laddr": laddr, "result": hex.EncodeToString(result)})
+		fetchMetaLogger.Error("chesum metadata not match", misc.Dict{"laddr": laddr, "metasize": peerConn.metaDataSize})
 		return nil, errors.New("check sum err")
 	}
 	fetchMetaLogger.Info("chesum metadata match", misc.Dict{"laddr": laddr, "infohash": hex.EncodeToString(peerConn.infoHash)})
@@ -181,7 +181,7 @@ func readMetaDataLoop(peerConn *PeerConn) {
 			handleExtendedMsg(peerConn, readBytes)
 		default:
 			// other msg just pass
-			fetchMetaLogger.Info("fetch bep3 msg", misc.Dict{"laddr": laddr, "peerMsgType": int(prefixLenMsg.PeerMsgType()), "payload": hex.EncodeToString(readBytes)})
+			fetchMetaLogger.Info("fetch bep3 msg", misc.Dict{"laddr": laddr, "peerMsgType": int(prefixLenMsg.PeerMsgType()), "payloadLen": len(readBytes)})
 		}
 	}
 
@@ -236,9 +236,9 @@ func handleExtendedMsg(peerConn *PeerConn, readBytes []byte) {
 		peerConn.requestedMetaData[pieceNum] = true
 	//pexExtendedId
 	case 2:
-		fetchMetaLogger.Info("fetch pexExtendedId extend msg", misc.Dict{"laddr": laddr, "msgid": msgId, "payload": hex.EncodeToString(readBytes)})
+		fetchMetaLogger.Info("fetch pexExtendedId extend msg", misc.Dict{"laddr": laddr, "msgid": msgId, "payloadLen": len(readBytes)})
 	default:
-		fetchMetaLogger.Info("fetch pexExtendedId wrong extend msg", misc.Dict{"laddr": laddr, "msgid": msgId, "payload": hex.EncodeToString(readBytes)})
+		fetchMetaLogger.Info("fetch pexExtendedId wrong extend msg", misc.Dict{"laddr": laddr, "msgid": msgId, "payloadLen": len(readBytes)})
 
 	}
 

@@ -13,7 +13,7 @@ const handShakeLen = 68
 const PeerIdLen = 20
 const InfoHashLen = 20
 const PrefixLen = 4
-const maxReadLength = 64 * 1024
+const maxReadLength = 32 * 1024
 
 // 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 support dht
 var defaultReservedBytes = []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
