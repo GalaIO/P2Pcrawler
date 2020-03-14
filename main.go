@@ -8,6 +8,7 @@ import (
 
 func main() {
 	misc.SetLevel(misc.INFO)
+	misc.StartPProf()
 	dht.BootStrap("87.98.162.88:6881")
 	dht.Run()
 	misc.Wait4Shutdown(5 * time.Second)
