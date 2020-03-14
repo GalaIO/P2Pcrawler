@@ -1,6 +1,7 @@
 package dht
 
 import (
+	"context"
 	"encoding/hex"
 	"github.com/GalaIO/P2Pcrawler/dht/krpc"
 	"github.com/GalaIO/P2Pcrawler/dht/peerwire"
@@ -12,14 +13,13 @@ import (
 var recvInfoHash = make(chan *krpc.RpcContext, 300000)
 
 func fetchTorrent() {
-	// 开启多个线程消费
-	for i := 0; i < 100; i++ {
-		go func() {
-			for {
-				ctx := <-recvInfoHash
-				fetchHandler(ctx)
-			}
-		}()
+	// 开启线程池消费
+	pool := misc.NewWorkPool(context.Background(), "fetchtorrent-workpool", 500)
+	for {
+		ctx := <-recvInfoHash
+		pool.AsyncSubmit(func() {
+			fetchHandler(ctx)
+		})
 	}
 }
 

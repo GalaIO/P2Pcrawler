@@ -33,6 +33,10 @@ func Run() {
 	dhtLogger.Info("enter fetchTorrent loop...", nil)
 	go fetchTorrent()
 
+	misc.RegisterShutDownClean(func() {
+		rpcServer.Close()
+		dhtLogger.Info("rpcserver closed...", nil)
+	})
 	dhtLogger.Info("enter listen loop...", nil)
 	rpcServer.Listen()
 }

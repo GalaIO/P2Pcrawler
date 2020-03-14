@@ -1,6 +1,7 @@
 package krpc
 
 import (
+	"context"
 	"encoding/hex"
 	"github.com/GalaIO/P2Pcrawler/misc"
 	"net"
@@ -31,23 +32,16 @@ func NewRpcServer(laddr string) *RpcServer {
 
 func (s *RpcServer) Listen() {
 
-	// 开启多个线程消费
-	for i := 0; i < 100; i++ {
-		go func() {
-			for {
-				packet := <-s.udpConn.RecvChan()
-				serverLogger.Info("<<<rpc received", misc.Dict{"from": packet.Addr.String(), "len": len(packet.Bytes)})
-
-				s.recvPacketHandle(packet)
-			}
-		}()
-	}
+	// 开启线程池消费
+	pool := misc.NewWorkPool(context.Background(), "krpc-workerpool", 2000)
 
 	for {
 		packet := <-s.udpConn.RecvChan()
 		serverLogger.Info("<<<rpc received", misc.Dict{"from": packet.Addr.String(), "len": len(packet.Bytes)})
 
-		s.recvPacketHandle(packet)
+		pool.AsyncSubmit(func() {
+			s.recvPacketHandle(packet)
+		})
 	}
 }
 
