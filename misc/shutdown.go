@@ -3,8 +3,10 @@ package misc
 import (
 	"context"
 	"os"
+	"os/signal"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 )
 
@@ -42,6 +44,7 @@ type shutdownContext struct {
 type CleanFunc func()
 
 func (ctx *shutdownContext) WaitShutdown(timeout time.Duration) {
+	shutdownLogger.Trace("blocking in main goroutinue...", nil)
 	select {
 	case <-ctx.innerCtx.Done():
 		shutdownLogger.Trace("received context done", Dict{"err": ctx.innerCtx.Err().Error()})
@@ -96,6 +99,7 @@ func WithShutdownContext(ctx context.Context) *shutdownContext {
 		innerCtx: ctx,
 		cleans:   make([]CleanFunc, 0),
 	}
+	signal.Notify(shutdownCtx.sigChan, syscall.SIGINT, syscall.SIGTERM)
 	shutdownCtx.status.Store(Running)
 	return shutdownCtx
 }

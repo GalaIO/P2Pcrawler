@@ -20,6 +20,22 @@ func (d *Dict) GetString(key string) string {
 	return dst
 }
 
+func (d *Dict) GetIntegerOrDefault(key string, val int) int {
+	dst, ok := d.GetValOrDefault(key, val).(int)
+	if !ok {
+		return val
+	}
+	return dst
+}
+
+func (d *Dict) GetStringOrDefault(key string, val string) string {
+	dst, ok := d.GetValOrDefault(key, val).(string)
+	if !ok {
+		return val
+	}
+	return dst
+}
+
 func (d *Dict) GetList(key string) List {
 	dst, ok := d.GetVal(key).(List)
 	if !ok {
@@ -40,6 +56,14 @@ func (d *Dict) GetVal(key string) interface{} {
 	val, exist := (*d)[key]
 	if !exist {
 		PanicBizErr("cannot find " + key + "'s val")
+	}
+	return val
+}
+
+func (d *Dict) GetValOrDefault(key string, val interface{}) interface{} {
+	val, exist := (*d)[key]
+	if !exist {
+		return val
 	}
 	return val
 }

@@ -18,6 +18,15 @@ const (
 	TRACE
 )
 
+var logLevelMapping = map[string]LogLevel{
+	"DEBUG": DEBUG,
+	"INFO":  INFO,
+	"WARN":  WARN,
+	"ERROR": ERROR,
+	"PANIC": PANIC,
+	"TRACE": TRACE,
+}
+
 type LoggerFactory interface {
 	GetDefaultName() string
 	NewLogger(name string, level LogLevel) Logger
@@ -73,6 +82,10 @@ func (b *bufferLogger) setLevel(level LogLevel) {
 	b.Lock()
 	defer b.Unlock()
 	b.level = level
+}
+
+func TransLogLevel(name string) LogLevel {
+	return logLevelMapping[strings.ToUpper(name)]
 }
 
 // using this function when programe init

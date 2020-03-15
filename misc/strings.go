@@ -21,7 +21,7 @@ func ToString(v interface{}) string {
 	if err != nil {
 		return err.Error()
 	}
-	return string(bytes)
+	return Bytes2Str(bytes)
 }
 
 func Str2Hex(str string) string {

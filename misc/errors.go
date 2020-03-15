@@ -1,6 +1,9 @@
 package misc
 
-import "strconv"
+import (
+	"runtime/debug"
+	"strconv"
+)
 
 type ErrCode int
 
@@ -20,7 +23,15 @@ type Error struct {
 }
 
 func (d *Error) Error() string {
-	return strconv.Itoa(int(d.code)) + ":" + d.msg
+	errString := strconv.Itoa(int(d.code)) + ": " + d.msg
+	if d.context != nil {
+		errString += ", params: "
+		for _, val := range d.context {
+			errString += ToString(val) + "|"
+		}
+	}
+	errString += "\r\nstacks:\r\n" + Bytes2Str(debug.Stack())
+	return errString
 }
 
 func NewError(code ErrCode, msg string, printStack bool, params ...interface{}) *Error {
@@ -32,10 +43,24 @@ func NewError(code ErrCode, msg string, printStack bool, params ...interface{}) 
 	}
 }
 
-func panicSysErr(errMsg string, params ...interface{}) {
-	panic(NewError(GenericErr, errMsg, true, params))
+func PanicSysErr(errMsg string, params ...interface{}) {
+	panic(NewError(GenericErr, errMsg, true, params...))
+}
+
+func PanicSysErrNonNil(err error, errMsg string, params ...interface{}) {
+	if err != nil {
+		params = append(params, err)
+		panic(NewError(GenericErr, errMsg, true, params...))
+	}
+}
+
+func PanicBizErrNonNil(err error, errMsg string, params ...interface{}) {
+	if err != nil {
+		params = append(params, err)
+		panic(NewError(GenericErr, errMsg, false, params...))
+	}
 }
 
 func PanicBizErr(errMsg string, params ...interface{}) {
-	panic(NewError(GenericErr, errMsg, false, params))
+	panic(NewError(GenericErr, errMsg, false, params...))
 }

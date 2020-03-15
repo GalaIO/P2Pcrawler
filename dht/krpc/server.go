@@ -3,6 +3,7 @@ package krpc
 import (
 	"context"
 	"encoding/hex"
+	"github.com/GalaIO/P2Pcrawler/config"
 	"github.com/GalaIO/P2Pcrawler/misc"
 	"net"
 )
@@ -33,7 +34,7 @@ func NewRpcServer(laddr string) *RpcServer {
 func (s *RpcServer) Listen() {
 
 	// 开启线程池消费
-	pool := misc.NewWorkPool(context.Background(), "krpc-workerpool", 2000)
+	pool := misc.NewWorkPool(context.Background(), "krpc-workerpool", config.DhtConfig().WorkPoolSize)
 
 	for {
 		packet := <-s.udpConn.RecvChan()

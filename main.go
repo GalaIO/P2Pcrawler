@@ -1,15 +1,12 @@
 package main
 
 import (
-	"github.com/GalaIO/P2Pcrawler/dht"
+	"github.com/GalaIO/P2Pcrawler/cmd"
+	"github.com/GalaIO/P2Pcrawler/config"
 	"github.com/GalaIO/P2Pcrawler/misc"
-	"time"
 )
 
 func main() {
-	misc.SetLevel(misc.INFO)
-	misc.StartPProf()
-	dht.BootStrap("87.98.162.88:6881")
-	dht.Run()
-	misc.Wait4Shutdown(5 * time.Second)
+	misc.SetLevel(misc.TransLogLevel(config.LoggerConfig().Level))
+	cmd.ExecuteBackgroud()
 }

@@ -5,7 +5,10 @@ import (
 	"net/http/pprof"
 )
 
+var pprofLogger = GetLogger().SetPrefix("pprof")
+
 func StartPProf() {
+	pprofLogger.Trace("start pprof...", nil)
 	serveMux := http.NewServeMux()
 	serveMux.HandleFunc("/debug/pprof/", pprof.Index)
 	serveMux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
@@ -16,5 +19,6 @@ func StartPProf() {
 		Addr:    ":10080",
 		Handler: serveMux,
 	}
+	pprofLogger.Trace("listening pprof...", nil)
 	go server.ListenAndServe()
 }

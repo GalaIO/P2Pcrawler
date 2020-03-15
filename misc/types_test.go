@@ -13,6 +13,8 @@ func TestDictGetter(t *testing.T) {
 	assert.Equal(t, "xiaohua", d.GetString("name"))
 	assert.Equal(t, List{100, 99}, d.GetList("grade"))
 	assert.Equal(t, Dict{"sister": "xiaomei"}, d.GetDict("family"))
+	assert.Equal(t, "test", d.GetStringOrDefault("defaulttest", "test"))
+	assert.Equal(t, 10, d.GetIntegerOrDefault("defaulttest", 10))
 }
 
 func TestDictGetterPanic(t *testing.T) {

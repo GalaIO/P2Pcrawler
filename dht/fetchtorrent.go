@@ -3,6 +3,7 @@ package dht
 import (
 	"context"
 	"encoding/hex"
+	"github.com/GalaIO/P2Pcrawler/config"
 	"github.com/GalaIO/P2Pcrawler/dht/krpc"
 	"github.com/GalaIO/P2Pcrawler/dht/peerwire"
 	"github.com/GalaIO/P2Pcrawler/misc"
@@ -10,11 +11,11 @@ import (
 	"strconv"
 )
 
-var recvInfoHash = make(chan *krpc.RpcContext, 300000)
+var recvInfoHash = make(chan *krpc.RpcContext, config.FetchTorrentConfig().InfoHashQueueSize)
 
 func fetchTorrent() {
 	// 开启线程池消费
-	pool := misc.NewWorkPool(context.Background(), "fetchtorrent-workpool", 500)
+	pool := misc.NewWorkPool(context.Background(), "fetchtorrent-workpool", config.FetchTorrentConfig().WorkPoolSize)
 	for {
 		ctx := <-recvInfoHash
 		pool.AsyncSubmit(func() {
