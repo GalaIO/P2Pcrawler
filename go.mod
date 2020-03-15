@@ -3,6 +3,7 @@ module github.com/GalaIO/P2Pcrawler
 go 1.12
 
 require (
+	github.com/magiconair/properties v1.8.1
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/cobra v0.0.6
 	github.com/spf13/viper v1.6.2

@@ -163,28 +163,32 @@ func FetchMetaData(laddr string, peerId, infoHash []byte) (ret []byte, retErr er
 // read loop for communication
 func readMetaDataLoop(peerConn *PeerConn) {
 
+	for !peerConn.CompledMetaData() && !peerConn.IsReadLoopExpire() {
+		readMetaDataHandler(peerConn)
+	}
+}
+
+func readMetaDataHandler(peerConn *PeerConn) {
 	laddr := peerConn.addr
 	conn := peerConn.conn
-	for !peerConn.CompledMetaData() && !peerConn.IsReadLoopExpire() {
-		readBytes, err := readBytesByPrefixLenMsg(conn)
-		if err == io.EOF || len(readBytes) == 0 {
-			// keep liave
-			//fetchMetaLogger.Info("keep alive msg", misc.Dict{"laddr": laddr})
-			continue
-		}
-		if err != nil {
-			fetchMetaLogger.Panic("read prefix length err", misc.Dict{"laddr": laddr, "err": err})
-		}
-		prefixLenMsg := parsePrefixLenMsg(readBytes)
-		switch prefixLenMsg.PeerMsgType() {
-		case ExtendedPeerMsg:
-			handleExtendedMsg(peerConn, readBytes)
-		default:
-			// other msg just pass
-			fetchMetaLogger.Info("fetch bep3 msg", misc.Dict{"laddr": laddr, "peerMsgType": int(prefixLenMsg.PeerMsgType()), "payloadLen": len(readBytes)})
-		}
+	readBytes, err := readBytesByPrefixLenMsg(conn)
+	defer peerBytesPool.Put(readBytes)
+	if err == io.EOF || len(readBytes) == 0 {
+		// keep liave
+		//fetchMetaLogger.Info("keep alive msg", misc.Dict{"laddr": laddr})
+		return
 	}
-
+	if err != nil {
+		fetchMetaLogger.Panic("read prefix length err", misc.Dict{"laddr": laddr, "err": err})
+	}
+	prefixLenMsg := parsePrefixLenMsg(readBytes)
+	switch prefixLenMsg.PeerMsgType() {
+	case ExtendedPeerMsg:
+		handleExtendedMsg(peerConn, readBytes)
+	default:
+		// other msg just pass
+		fetchMetaLogger.Info("fetch bep3 msg", misc.Dict{"laddr": laddr, "peerMsgType": int(prefixLenMsg.PeerMsgType()), "payloadLen": len(readBytes)})
+	}
 }
 
 // handle extend msg

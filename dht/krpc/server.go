@@ -10,6 +10,7 @@ import (
 
 var serverLogger = misc.GetLogger().SetPrefix("server")
 var supportQueryType = misc.List{"ping", "find_node", "get_peers", "announce_peer"}
+var krpcBytesPool = misc.NewBytesPool(10000, 100)
 
 type RpcHandlerFunc func(ctx *RpcContext)
 type RpcServer struct {
@@ -113,6 +114,7 @@ func (s *RpcServer) recvPacketHandle(packet *RecvPacket) {
 		if err := recover(); err != nil {
 			serverLogger.Error("recv packet handle panic", misc.Dict{"from": packet.Addr.String(), "err": err, "bytesLen": len(packet.Bytes)})
 		}
+		krpcBytesPool.Put(packet.Bytes)
 	}()
 
 	// parse packet

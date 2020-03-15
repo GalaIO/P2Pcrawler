@@ -95,7 +95,7 @@ func StartUdpServer(localAddr string) *UdpServer {
 
 func (s *UdpServer) recvRoutiue() {
 	for !(s.closed.Load().(bool)) {
-		buf := make([]byte, RecvPacketLen)
+		buf := krpcBytesPool.GetBySize(RecvPacketLen)
 		n, raddr, err := s.conn.ReadFromUDP(buf)
 		if err != nil {
 			udpLogger.Error("<<< receive udp err", misc.Dict{"err": err})

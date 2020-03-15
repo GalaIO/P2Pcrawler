@@ -135,19 +135,22 @@ func supportExterned(bytes []byte) []byte {
 
 // without prefix bytes
 func readBytesByPrefixLenMsg(reader io.Reader) ([]byte, error) {
-	preLenbytes := make([]byte, PrefixLen)
+	preLenbytes := peerBytesPool.GetBySize(PrefixLen)
 	_, err := reader.Read(preLenbytes)
 	if err != nil {
 		return nil, err
 	}
 	preLen := binary.BigEndian.Uint32(preLenbytes)
+
+	// recollection
+	peerBytesPool.Put(preLenbytes)
 	if preLen > maxReadLength {
 		return nil, errors.New("read input toolarge")
 	}
-	buf := make([]byte, preLen)
-	_, err = reader.Read(buf)
+	buf := peerBytesPool.GetBySize(maxReadLength)
+	n, err := reader.Read(buf)
 	if err != nil {
 		return nil, err
 	}
-	return buf, nil
+	return buf[:n], nil
 }
