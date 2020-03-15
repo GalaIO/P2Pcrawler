@@ -21,22 +21,22 @@ var torrent = &cobra.Command{
 			misc.PanicSysErrNonNil(err, "open torrent dir err")
 			for _, item := range dirs {
 				if !item.IsDir() && strings.HasSuffix(item.Name(), ".torrent") {
-					printTorrentInfo(filepath.Join(path, item.Name()))
+					printTorrentInfo(item.Name(), filepath.Join(path, item.Name()))
 				}
 			}
 			return
 		}
-		printTorrentInfo(path)
+		printTorrentInfo(path, path)
 	},
 }
 
-func printTorrentInfo(path string) {
+func printTorrentInfo(filename, path string) {
 	file, err := os.Open(path)
 	misc.PanicSysErrNonNil(err, "open torrent file err", path)
 	bytes, err := ioutil.ReadAll(file)
 	misc.PanicSysErrNonNil(err, "read torrent file err", path)
 	dict, err := misc.DecodeDict(misc.Bytes2Str(bytes))
 	misc.PanicSysErrNonNil(err, "DecodeDict torrent file err", path)
-	fmt.Printf("name: %s, length: %d, piece length: %d\r\n", dict.GetStringOrDefault("name", "name err"),
+	fmt.Printf("%s||%s||%d||%d\r\n", dict.GetStringOrDefault("name", "name err"), filename,
 		dict.GetIntegerOrDefault("length", 0), dict.GetIntegerOrDefault("piece length", 0))
 }
