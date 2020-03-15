@@ -20,11 +20,12 @@ func TestBytesPool(t *testing.T) {
 func BenchmarkBytesPool(b *testing.B) {
 	bytesPool := NewBytesPool(100, 10)
 	for i := 0; i < b.N; i++ {
-		bytes := bytesPool.GetBySize(((i % 100) + 1) * 100000)
-		if len(bytes) <= 0 {
+		length := ((i % 100) + 1) * 100000
+		bytes := bytesPool.GetBySize(length)
+		if len(bytes) != length {
 			panic("get bytes err")
 		}
-		bytesPool.Put(bytes)
+		bytesPool.Put(bytes[:1])
 	}
 }
 

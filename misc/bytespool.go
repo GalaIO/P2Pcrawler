@@ -52,7 +52,8 @@ func (bp *BytesPool) GetBySize(size int) (b []byte) {
 func (bp *BytesPool) Put(b []byte) {
 	bytesChan := bp.loadOrStore(cap(b))
 	select {
-	case bytesChan <- b:
+	// reset bytes length, import...
+	case bytesChan <- b[:cap(b)]:
 		// buffer went back into pool
 	default:
 		// buffer didn't go back into pool, just discard
