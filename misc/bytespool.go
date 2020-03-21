@@ -62,7 +62,6 @@ func (bp *BytesPool) Put(b []byte) {
 
 // double check if exist chan, else create it.
 func (bp *BytesPool) loadOrStore(i int) chan []byte {
-	bp.chanMapping.Load(i)
 	if c, exist := bp.chanMapping.Load(i); exist {
 		return c.(chan []byte)
 	}

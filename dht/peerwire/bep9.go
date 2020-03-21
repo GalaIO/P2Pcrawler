@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"github.com/GalaIO/P2Pcrawler/misc"
-	"io"
 	"net"
 	"strings"
 	"time"
@@ -171,16 +170,21 @@ func readMetaDataLoop(peerConn *PeerConn) {
 func readMetaDataHandler(peerConn *PeerConn) {
 	laddr := peerConn.addr
 	conn := peerConn.conn
-	readBytes, err := readBytesByPrefixLenMsg(conn)
-	defer peerBytesPool.Put(readBytes)
-	if err == io.EOF || len(readBytes) == 0 {
-		// keep liave
+	keepAlive, readBytes, err := readBytesByPrefixLenMsg(conn)
+	defer func() {
+		if cap(readBytes) > 0 {
+			peerBytesPool.Put(readBytes)
+		}
+	}()
+	if keepAlive {
+		// keep alive
 		//fetchMetaLogger.Info("keep alive msg", misc.Dict{"laddr": laddr})
 		return
 	}
 	if err != nil {
 		fetchMetaLogger.Panic("read prefix length err", misc.Dict{"laddr": laddr, "err": err})
 	}
+
 	prefixLenMsg := parsePrefixLenMsg(readBytes)
 	switch prefixLenMsg.PeerMsgType() {
 	case ExtendedPeerMsg:
